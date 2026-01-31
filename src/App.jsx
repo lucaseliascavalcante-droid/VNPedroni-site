@@ -37,22 +37,16 @@ try {
   console.error("Erro Firebase:", e);
 }
 
-// --- INDEXED DB HELPER (V14 - OTIMIZADO) ---
+// --- INDEXED DB HELPER (V14) ---
 const DB_NAME = 'vn_pedroni_v14_fixed'; 
 const STORE_CONTENT = 'site_content';
 const STORE_ITEMS = 'site_items';
 
 const idb = {
-  _dbPromise: null, // Cache de conexão
   open: () => {
-    if (idb._dbPromise) return idb._dbPromise;
-    
-    idb._dbPromise = new Promise((resolve, reject) => {
+    return new Promise((resolve, reject) => {
       const request = indexedDB.open(DB_NAME, 1);
-      request.onerror = () => {
-          idb._dbPromise = null; // Reset em caso de erro
-          reject(request.error);
-      };
+      request.onerror = () => reject(request.error);
       request.onsuccess = () => resolve(request.result);
       request.onupgradeneeded = (event) => {
         const db = event.target.result;
@@ -60,7 +54,6 @@ const idb = {
         if (!db.objectStoreNames.contains(STORE_ITEMS)) db.createObjectStore(STORE_ITEMS);
       };
     });
-    return idb._dbPromise;
   },
   put: async (storeName, key, value) => {
     try {
@@ -68,11 +61,7 @@ const idb = {
       return new Promise((resolve, reject) => {
         const tx = db.transaction(storeName, 'readwrite');
         const store = tx.objectStore(storeName);
-        // Otimização: structuredClone é mais rápido que JSON parse/stringify
-        const cleanValue = typeof structuredClone === 'function' 
-            ? structuredClone(value) 
-            : JSON.parse(JSON.stringify(value));
-            
+        const cleanValue = JSON.parse(JSON.stringify(value)); 
         const req = store.put(cleanValue, key);
         req.onsuccess = () => resolve();
         req.onerror = () => reject(req.error);
@@ -112,6 +101,26 @@ const isVideo = (url) => {
   const lower = url.toLowerCase();
   return lower.endsWith('.mp4') || lower.includes('.webm') || lower.includes('.mov') || lower.includes('.avi') || lower.includes('.mkv');
 };
+
+const getEmbedUrl = (url) => {
+  if (!url) return null;
+  
+  // YouTube
+  const ytMatch = url.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))([^#&?]*).*/);
+  if (ytMatch && ytMatch[1]) {
+    return { type: 'youtube', src: `https://www.youtube.com/embed/${ytMatch[1]}` };
+  }
+  
+  // Vimeo
+  const vimeoMatch = url.match(/(?:vimeo\.com\/)([0-9]+)/);
+  if (vimeoMatch && vimeoMatch[1]) {
+    return { type: 'vimeo', src: `https://player.vimeo.com/video/${vimeoMatch[1]}` };
+  }
+  
+  // Direct file (MP4, etc)
+  return { type: 'video', src: url };
+};
+
 
 const normalizeGallery = (gallery) => {
   if (!gallery || !Array.isArray(gallery)) return [];
@@ -173,7 +182,6 @@ const ImageWithLoader = ({ src, alt, className, style, onClick }) => {
     const [imgLoading, setImgLoading] = useState(true);
     const [currentSrc, setCurrentSrc] = useState(null);
     const [error, setError] = useState(false);
-    const lastUpdate = useRef(0);
 
     useEffect(() => {
         if (!src) { setError(true); setImgLoading(false); return; }
@@ -192,13 +200,10 @@ const ImageWithLoader = ({ src, alt, className, style, onClick }) => {
         xhr.open("GET", src, true);
         xhr.responseType = "blob";
 
-        // Otimização: Throttle na atualização de progresso para evitar re-renders excessivos
         xhr.onprogress = (event) => {
-            const now = Date.now();
-            if (event.lengthComputable && (now - lastUpdate.current > 150)) {
+            if (event.lengthComputable) {
                 const percent = Math.round((event.loaded / event.total) * 100);
                 setProgress(percent);
-                lastUpdate.current = now;
             }
         };
 
@@ -214,7 +219,7 @@ const ImageWithLoader = ({ src, alt, className, style, onClick }) => {
         };
 
         xhr.onerror = () => {
-            console.warn("XHR falhou, usando tag img padrão");
+            // Silently fallback without log spam
             setCurrentSrc(src);
             setImgLoading(false);
         };
@@ -247,8 +252,6 @@ const ImageWithLoader = ({ src, alt, className, style, onClick }) => {
                 <img 
                     src={currentSrc || src} 
                     alt={alt} 
-                    loading="lazy"
-                    decoding="async"
                     className={`w-full h-full object-cover transition-all duration-700 ${imgLoading ? 'opacity-0 scale-95' : 'opacity-100 scale-100'}`}
                     onError={() => setError(true)}
                 />
@@ -390,7 +393,7 @@ export default function App() {
     } catch(e) {}
   }, [user, isEditing]);
 
-  // --- 4. PERSISTÊNCIA UNIFICADA (OTIMIZADA COM requestIdleCallback) ---
+  // --- 4. PERSISTÊNCIA UNIFICADA ---
   const saveAll = async () => {
     setSaveStatus('saving');
     setStatusMsg("Salvando...");
@@ -418,14 +421,8 @@ export default function App() {
 
   useEffect(() => {
     if (!isEditing || !dataLoaded) return;
-    
-    // Otimização: Salvar apenas quando o browser estiver ocioso
-    const idleCallback = window.requestIdleCallback || ((cb) => setTimeout(cb, 2000));
-    const cancelIdleCallback = window.cancelIdleCallback || clearTimeout;
-    
-    const taskId = idleCallback(() => saveAll(), { timeout: 4000 });
-    
-    return () => cancelIdleCallback(taskId);
+    const t = setTimeout(saveAll, 2000);
+    return () => clearTimeout(t);
   }, [content, items, isEditing, dataLoaded]);
 
   // --- 5. UPLOADS COM PROGRESSO ---
@@ -542,16 +539,20 @@ export default function App() {
       const current = g[idx].size || 'landscape';
       const type = g[idx].type;
       
+      // Ciclo: landscape (2x1) -> square (1x1) -> portrait (1x2)
       let nextSize = 'landscape';
-      if (type === 'video') nextSize = current === 'landscape' ? 'portrait' : 'landscape';
-      else {
-          if (current === 'landscape') nextSize = 'square';
-          else if (current === 'square') nextSize = 'portrait';
-          else nextSize = 'landscape';
-      }
+      if (current === 'landscape') nextSize = 'square';
+      else if (current === 'square') nextSize = 'portrait';
+      
+      // Se for vídeo, força landscape
+      if (g[idx].type === 'video') nextSize = 'landscape';
+      
       g[idx].size = nextSize;
-      if (viewingItem?.id === itemId) setViewingItem({ ...viewingItem, gallery: g });
-      return { ...it, gallery: g };
+      
+      const n = items.map(x => x.id === viewingItem.id ? {...x, gallery: g} : x);
+      setItems(n);
+      setViewingItem({...viewingItem, gallery: g});
+      ignoreRemote.current = true;
     });
     setItems(updated);
     ignoreRemote.current = true;
@@ -622,34 +623,27 @@ export default function App() {
   }, [lightboxIndex, viewingItem]);
 
 
-  // --- RENDER & ANIMATION OBSERVER (OTIMIZADO) ---
+  // --- RENDER & ANIMATION OBSERVER ---
   useEffect(() => {
-    let ticking = false;
-    const h = () => {
-        if (!ticking) {
-            window.requestAnimationFrame(() => {
-                setIsScrolled(window.scrollY > 50);
-                ticking = false;
-            });
-            ticking = true;
-        }
-    };
-    window.addEventListener('scroll', h, { passive: true });
+    const h = () => setIsScrolled(window.scrollY > 50);
+    window.addEventListener('scroll', h);
     return () => window.removeEventListener('scroll', h);
   }, []);
 
+  // OBSERVER PARA ANIMAÇÃO (PRINCIPAL + MODAL)
   useEffect(() => {
     if (!dataLoaded) return;
     
+    // Observer para animar elementos "reveal"
     const setupObserver = (root = null) => {
         const observer = new IntersectionObserver((entries) => {
             entries.forEach(entry => {
                 if (entry.isIntersecting) {
+                    // Adiciona classe para animar
                     entry.target.classList.add('active');
-                    observer.unobserve(entry.target); // Para de observar após ativar
                 }
             });
-        }, { threshold: 0.05, root: root }); 
+        }, { threshold: 0.01, root: root, rootMargin: '20px' }); 
         
         const elements = root ? root.querySelectorAll('.reveal') : document.querySelectorAll('.reveal');
         elements.forEach(el => observer.observe(el));
@@ -660,7 +654,7 @@ export default function App() {
     let modalObserver = null;
 
     if (viewingItem && modalScrollRef.current) {
-        // Delay crucial para o DOM do modal renderizar e o scroll existir
+        // Observer específico para o modal com delay para garantir renderização
         setTimeout(() => {
              modalObserver = setupObserver(modalScrollRef.current);
              // Fallback de segurança para garantir visibilidade
@@ -694,16 +688,13 @@ export default function App() {
   return (
     <div className="min-h-screen bg-[#FAF9F6] text-[#593428] font-sans selection:bg-[#593428] selection:text-[#EADDCE] overflow-x-hidden">
       <style>{`
-        /* APPLE-LIKE ANIMATIONS */
-        :root { --ease-apple: cubic-bezier(0.25, 0.1, 0.25, 1); }
-        .reveal { opacity: 0; transform: translateY(20px) scale(0.98); transition: opacity 0.8s var(--ease-apple), transform 0.8s var(--ease-apple); will-change: transform, opacity; }
-        .reveal.active { opacity: 1; transform: translateY(0) scale(1); }
+        .reveal { opacity: 0; transform: translateY(40px); transition: all 1s cubic-bezier(0.2, 0, 0.2, 1); will-change: transform, opacity; }
+        .reveal.active { opacity: 1; transform: translateY(0); }
         .modal-content .reveal { transition-duration: 0.6s; } 
         @keyframes marquee { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
-        @keyframes fadeInApple { from { opacity: 0; transform: scale(0.98); } to { opacity: 1; transform: scale(1); } }
         .animate-marquee { animation: marquee 40s linear infinite; }
-        .animate-fade-in { animation: fadeInApple 0.4s var(--ease-apple) forwards; }
-        button:active { transform: scale(0.96); transition: transform 0.1s var(--ease-apple); }
+        .animate-fade-in { animation: fadeIn 0.4s ease-out forwards; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
       `}</style>
 
       <input type="file" ref={fileInputRef} className="hidden" />
@@ -826,17 +817,40 @@ export default function App() {
             <EditableText id="videoDescription" tag="p" className="text-gray-500 leading-relaxed font-light text-lg" value={content.videoDescription} isEditing={isEditing} onChange={handleContentChange} />
           </div>
           <div className="order-1 md:order-2 relative aspect-video group shadow-2xl rounded-sm bg-black overflow-hidden">
+             {/* Verifica se é link externo (iframe) ou vídeo direto */}
              {content.videoSectionUrl ? (
-                <video key={content.videoSectionUrl} src={content.videoSectionUrl} controls className="w-full h-full object-cover" playsInline />
+                content.videoSectionUrl.includes('youtube') || content.videoSectionUrl.includes('vimeo') ? (
+                  // Iframe para YouTube/Vimeo
+                  <iframe 
+                      src={getEmbedUrl(content.videoSectionUrl)?.src} 
+                      className="w-full h-full" 
+                      frameBorder="0" 
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+                      allowFullScreen 
+                  />
+                ) : (
+                  // Player nativo para arquivos diretos
+                  <video 
+                     key={content.videoSectionUrl} 
+                     src={content.videoSectionUrl} 
+                     controls 
+                     className="w-full h-full object-cover" 
+                     playsInline 
+                  />
+                )
              ) : (
                 <div className="w-full h-full flex flex-col items-center justify-center text-gray-500 gap-4">
                    <Film size={40} className="opacity-50"/>
                    <span className="text-xs uppercase tracking-widest">Nenhum filme selecionado</span>
                 </div>
              )}
+             
              {isEditing && (
-                <button onClick={() => triggerFileUpload(url => handleContentChange('videoSectionUrl', url))} className="absolute bottom-4 right-4 bg-white text-black px-4 py-2 text-[10px] uppercase font-bold shadow-lg hover:bg-[#EADDCE] transition-colors z-20 flex items-center gap-2">
-                  <Upload size={14}/> {content.videoSectionUrl ? 'Trocar Filme' : 'Adicionar Filme'}
+                <button onClick={() => {
+                   const url = prompt("Cole o link do vídeo (YouTube, Vimeo ou MP4):", content.videoSectionUrl);
+                   if(url) handleContentChange('videoSectionUrl', url);
+                }} className="absolute bottom-4 right-4 bg-white text-black px-4 py-2 text-[10px] uppercase font-bold shadow-lg hover:bg-[#EADDCE] transition-colors z-20 flex items-center gap-2">
+                  <Link size={14}/> {content.videoSectionUrl ? 'Trocar Link' : 'Adicionar Link'}
                 </button>
              )}
           </div>
