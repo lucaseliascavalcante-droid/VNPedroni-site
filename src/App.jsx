@@ -102,26 +102,6 @@ const isVideo = (url) => {
   return lower.endsWith('.mp4') || lower.includes('.webm') || lower.includes('.mov') || lower.includes('.avi') || lower.includes('.mkv');
 };
 
-const getEmbedUrl = (url) => {
-  if (!url) return null;
-  
-  // YouTube
-  const ytMatch = url.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))([^#&?]*).*/);
-  if (ytMatch && ytMatch[1]) {
-    return { type: 'youtube', src: `https://www.youtube.com/embed/${ytMatch[1]}` };
-  }
-  
-  // Vimeo
-  const vimeoMatch = url.match(/(?:vimeo\.com\/)([0-9]+)/);
-  if (vimeoMatch && vimeoMatch[1]) {
-    return { type: 'vimeo', src: `https://player.vimeo.com/video/${vimeoMatch[1]}` };
-  }
-  
-  // Direct file (MP4, etc)
-  return { type: 'video', src: url };
-};
-
-
 const normalizeGallery = (gallery) => {
   if (!gallery || !Array.isArray(gallery)) return [];
   return gallery.map(item => {
@@ -219,7 +199,7 @@ const ImageWithLoader = ({ src, alt, className, style, onClick }) => {
         };
 
         xhr.onerror = () => {
-            // Silently fallback without log spam
+            console.warn("XHR falhou, usando tag img padrão");
             setCurrentSrc(src);
             setImgLoading(false);
         };
@@ -537,7 +517,6 @@ export default function App() {
       if (it.id !== itemId) return it;
       let g = normalizeGallery(it.gallery);
       const current = g[idx].size || 'landscape';
-      const type = g[idx].type;
       
       // Ciclo: landscape (2x1) -> square (1x1) -> portrait (1x2)
       let nextSize = 'landscape';
@@ -630,16 +609,13 @@ export default function App() {
     return () => window.removeEventListener('scroll', h);
   }, []);
 
-  // OBSERVER PARA ANIMAÇÃO (PRINCIPAL + MODAL)
   useEffect(() => {
     if (!dataLoaded) return;
     
-    // Observer para animar elementos "reveal"
     const setupObserver = (root = null) => {
         const observer = new IntersectionObserver((entries) => {
             entries.forEach(entry => {
                 if (entry.isIntersecting) {
-                    // Adiciona classe para animar
                     entry.target.classList.add('active');
                 }
             });
@@ -654,17 +630,14 @@ export default function App() {
     let modalObserver = null;
 
     if (viewingItem && modalScrollRef.current) {
-        // Observer específico para o modal com delay para garantir renderização
         setTimeout(() => {
              modalObserver = setupObserver(modalScrollRef.current);
-             // Fallback de segurança para garantir visibilidade
              setTimeout(() => {
                  const modalElements = document.querySelectorAll('.modal-content .reveal');
                  modalElements.forEach(el => el.classList.add('active'));
              }, 800);
         }, 100);
     } else {
-        // Fallback main
         setTimeout(() => {
              document.querySelectorAll('.reveal').forEach(el => el.classList.add('active'));
         }, 500);
@@ -817,40 +790,17 @@ export default function App() {
             <EditableText id="videoDescription" tag="p" className="text-gray-500 leading-relaxed font-light text-lg" value={content.videoDescription} isEditing={isEditing} onChange={handleContentChange} />
           </div>
           <div className="order-1 md:order-2 relative aspect-video group shadow-2xl rounded-sm bg-black overflow-hidden">
-             {/* Verifica se é link externo (iframe) ou vídeo direto */}
              {content.videoSectionUrl ? (
-                content.videoSectionUrl.includes('youtube') || content.videoSectionUrl.includes('vimeo') ? (
-                  // Iframe para YouTube/Vimeo
-                  <iframe 
-                      src={getEmbedUrl(content.videoSectionUrl)?.src} 
-                      className="w-full h-full" 
-                      frameBorder="0" 
-                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
-                      allowFullScreen 
-                  />
-                ) : (
-                  // Player nativo para arquivos diretos
-                  <video 
-                     key={content.videoSectionUrl} 
-                     src={content.videoSectionUrl} 
-                     controls 
-                     className="w-full h-full object-cover" 
-                     playsInline 
-                  />
-                )
+                <video key={content.videoSectionUrl} src={content.videoSectionUrl} controls className="w-full h-full object-cover" playsInline />
              ) : (
                 <div className="w-full h-full flex flex-col items-center justify-center text-gray-500 gap-4">
                    <Film size={40} className="opacity-50"/>
                    <span className="text-xs uppercase tracking-widest">Nenhum filme selecionado</span>
                 </div>
              )}
-             
              {isEditing && (
-                <button onClick={() => {
-                   const url = prompt("Cole o link do vídeo (YouTube, Vimeo ou MP4):", content.videoSectionUrl);
-                   if(url) handleContentChange('videoSectionUrl', url);
-                }} className="absolute bottom-4 right-4 bg-white text-black px-4 py-2 text-[10px] uppercase font-bold shadow-lg hover:bg-[#EADDCE] transition-colors z-20 flex items-center gap-2">
-                  <Link size={14}/> {content.videoSectionUrl ? 'Trocar Link' : 'Adicionar Link'}
+                <button onClick={() => triggerFileUpload(url => handleContentChange('videoSectionUrl', url))} className="absolute bottom-4 right-4 bg-white text-black px-4 py-2 text-[10px] uppercase font-bold shadow-lg hover:bg-[#EADDCE] transition-colors z-20 flex items-center gap-2">
+                  <Upload size={14}/> {content.videoSectionUrl ? 'Trocar Filme' : 'Adicionar Filme'}
                 </button>
              )}
           </div>
@@ -959,8 +909,8 @@ export default function App() {
                 </div>
              </div>
              
-             {/* GRID DENSE MATEMÁTICO - 2 COLUNAS MOBILE, 4 DESKTOP */}
-             <div className="grid grid-cols-2 md:grid-cols-4 gap-2 auto-rows-[minmax(0,_1fr)] grid-flow-dense">
+             {/* GRID DENSE MATEMÁTICO SEM GAPS BRANCOS */}
+             <div className="grid grid-cols-2 md:grid-cols-4 gap-2 auto-rows-[minmax(100px,_auto)] grid-flow-dense">
                 {normalizeGallery(viewingItem.gallery).map((m, i) => (
                   <div 
                       key={i} 
@@ -968,7 +918,7 @@ export default function App() {
                           m.size === 'landscape' ? 'col-span-2 row-span-1 aspect-[2/1]' : 
                           m.size === 'square' ? 'col-span-1 row-span-1 aspect-square' : 
                           'col-span-1 row-span-2 aspect-[1/2]'
-                      } bg-gray-100`}
+                      } bg-[#EADDCE]/20`}
                       draggable={isEditing}
                       onDragStart={(e) => handleDragStart(e, i)}
                       onDragEnd={handleDragEnd}
@@ -982,7 +932,7 @@ export default function App() {
                            muted 
                            loop 
                            playsInline 
-                           className="w-full h-full object-cover transition-opacity duration-1000 opacity-0 animate-fade-in absolute inset-0" 
+                           className="w-full h-full object-cover absolute inset-0 opacity-0 transition-opacity duration-1000" 
                            onLoadedData={(e) => e.target.classList.remove('opacity-0')} 
                         />
                       ) : (
