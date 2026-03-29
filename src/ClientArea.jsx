@@ -59,7 +59,7 @@ export function AdminClientManager({ onClose, db, storage, isDemoMode }) {
       // 3. Save to Firestore
       setMessage('Salvando dados do cliente...');
       try {
-        await setDoc(doc(db, 'artifacts', manualConfig.projectId, 'public', 'data', 'clients', clientUid), {
+        await setDoc(doc(db, 'artifacts', manualConfig.projectId, 'public', 'data', 'site_content', 'client_' + clientUid), {
           email: email,
           title: title || "Sua Entrega",
           links: links.filter(l => l.url.trim() !== ''),
@@ -150,7 +150,7 @@ export function ClientDashboard({ db, user, onLogOut, onBackContent }) {
 
   useEffect(() => {
     if(!user || !db) return;
-    getDoc(doc(db, 'artifacts', manualConfig.projectId, 'public', 'data', 'clients', user.uid)).then(d => {
+    getDoc(doc(db, 'artifacts', manualConfig.projectId, 'public', 'data', 'site_content', 'client_' + user.uid)).then(d => {
       if(d.exists()) {
         setClientData(d.data());
       } else {
