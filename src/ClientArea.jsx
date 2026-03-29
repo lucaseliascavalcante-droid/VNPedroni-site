@@ -42,7 +42,7 @@ export function AdminClientManager({ onClose, db, storage, isDemoMode }) {
       const uploadedUrls = [];
       for (const file of previewFiles) {
         if(file instanceof File) {
-          const storageRef = ref(storage, `clients/${clientUid}/${Date.now()}_${file.name}`);
+          const storageRef = ref(storage, `uploads/${manualConfig.projectId}/clients/${clientUid}/${Date.now()}_${file.name}`);
           await uploadBytes(storageRef, file);
           const dl = await getDownloadURL(storageRef);
           uploadedUrls.push(dl);
@@ -53,7 +53,7 @@ export function AdminClientManager({ onClose, db, storage, isDemoMode }) {
 
       // 3. Save to Firestore
       setMessage('Salvando dados do cliente...');
-      await setDoc(doc(db, "clients", clientUid), {
+      await setDoc(doc(db, 'artifacts', manualConfig.projectId, 'public', 'data', 'clients', clientUid), {
         email: email,
         title: title || "Sua Entrega",
         links: links.filter(l => l.url.trim() !== ''),
@@ -141,7 +141,7 @@ export function ClientDashboard({ db, user, onLogOut, onBackContent }) {
 
   useEffect(() => {
     if(!user || !db) return;
-    getDoc(doc(db, "clients", user.uid)).then(d => {
+    getDoc(doc(db, 'artifacts', manualConfig.projectId, 'public', 'data', 'clients', user.uid)).then(d => {
       if(d.exists()) {
         setClientData(d.data());
       } else {
