@@ -1,11 +1,19 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Camera, Video, Heart, Mail, Instagram, Play, ArrowRight, Menu, X, Lock, LogOut, Plus, Trash2, Save, Edit2, Image as ImageIcon, Upload, Loader, Facebook, Twitter, Linkedin, ChevronDown, Link as LinkIcon, User, ChevronLeft, ChevronRight, LayoutGrid, Settings, Film, CheckCircle, AlertCircle, Cloud, WifiOff, Database, RefreshCw, AlertTriangle, HardDrive, Link, ImageOff, Maximize2, XCircle, GripVertical } from 'lucide-react';
+import {
+  Camera, Video, Heart, Mail, Instagram, Play, ArrowRight, Menu, X, Lock,
+  LogOut, Plus, Trash2, Save, Edit2, Image as ImageIcon, Upload, Loader,
+  Facebook, Twitter, Linkedin, ChevronDown, Link as LinkIcon, User,
+  ChevronLeft, ChevronRight, LayoutGrid, Settings, Film, CheckCircle,
+  AlertCircle, Cloud, WifiOff, Database, RefreshCw, AlertTriangle,
+  HardDrive, ImageOff, Maximize2, XCircle, GripVertical
+} from 'lucide-react';
 
 // --- FIREBASE IMPORTS ---
 import { initializeApp, getApps, getApp } from "firebase/app";
 import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged, signInAnonymously } from "firebase/auth";
 import { getFirestore, doc, setDoc, onSnapshot, updateDoc } from "firebase/firestore";
 import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { AdminClientManager, ClientDashboard } from './ClientArea';
 
 // --- FIREBASE CONFIGURATION ---
 const manualConfig = {
@@ -19,7 +27,7 @@ const manualConfig = {
 
 // --- INICIALIZAÇÃO SEGURA ---
 let app, auth, db, storage;
-const appId = manualConfig.projectId; 
+const appId = manualConfig.projectId;
 let firebaseInitialized = false;
 
 try {
@@ -38,7 +46,7 @@ try {
 }
 
 // --- INDEXED DB HELPER (V14) ---
-const DB_NAME = 'vn_pedroni_v14_fixed'; 
+const DB_NAME = 'vn_pedroni_v14_fixed';
 const STORE_CONTENT = 'site_content';
 const STORE_ITEMS = 'site_items';
 
@@ -61,7 +69,7 @@ const idb = {
       return new Promise((resolve, reject) => {
         const tx = db.transaction(storeName, 'readwrite');
         const store = tx.objectStore(storeName);
-        const cleanValue = JSON.parse(JSON.stringify(value)); 
+        const cleanValue = JSON.parse(JSON.stringify(value));
         const req = store.put(cleanValue, key);
         req.onsuccess = () => resolve();
         req.onerror = () => reject(req.error);
@@ -81,21 +89,21 @@ const idb = {
     } catch (e) { return null; }
   },
   clear: async () => {
-     try {
-       const req = indexedDB.deleteDatabase(DB_NAME);
-       localStorage.clear();
-       req.onsuccess = () => {
-           console.log("DB Limpo");
-           window.location.reload();
-       };
-     } catch(e) {}
+    try {
+      const req = indexedDB.deleteDatabase(DB_NAME);
+      localStorage.clear();
+      req.onsuccess = () => {
+        console.log("DB Limpo");
+        window.location.reload();
+      };
+    } catch (e) { }
   }
 };
 
 // --- HELPERS ---
 const isVideo = (url) => {
   if (!url || typeof url !== 'string') return false;
-  if (url.startsWith('data:video')) return true; 
+  if (url.startsWith('data:video')) return true;
   if (url.startsWith('data:image')) return false;
 
   const lower = url.toLowerCase();
@@ -106,7 +114,7 @@ const normalizeGallery = (gallery) => {
   if (!gallery || !Array.isArray(gallery)) return [];
   return gallery.map(item => {
     if (typeof item === 'string') return { url: item, size: 'landscape', type: isVideo(item) ? 'video' : 'image' };
-    return { ...item, size: item.size || 'landscape', type: isVideo(item.url) ? 'video' : 'image' }; 
+    return { ...item, size: item.size || 'landscape', type: isVideo(item.url) ? 'video' : 'image' };
   });
 };
 
@@ -114,10 +122,10 @@ const EditableText = ({ id, tag: Tag, className, value, isEditing, onChange }) =
   const safeValue = (value !== undefined && value !== null && typeof value !== 'object') ? String(value) : '';
   if (isEditing) {
     return (
-      <textarea 
-        value={safeValue} 
-        onChange={e => onChange(id, e.target.value)} 
-        className={`w-full bg-yellow-100/10 border border-yellow-500/20 p-1 focus:outline-none rounded resize-none ${className}`} 
+      <textarea
+        value={safeValue}
+        onChange={e => onChange(id, e.target.value)}
+        className={`w-full bg-yellow-100/10 border border-yellow-500/20 p-1 focus:outline-none rounded resize-none ${className}`}
       />
     );
   }
@@ -133,111 +141,111 @@ const PinterestIcon = ({ size = 20, className }) => (
 );
 
 const SmartSocialButton = ({ icon: Icon, link, isEditing, onUpdate, label }) => {
-    const handleClick = () => {
-        if (isEditing) {
-            const newLink = prompt(`Editar Link do ${label}:`, link);
-            if (newLink !== null) onUpdate(newLink);
-        } else {
-            if (link) window.open(link, '_blank');
-        }
-    };
-    return (
-        <button 
-            onClick={handleClick} 
-            className={`p-3 transition-colors border rounded-full relative group ${isEditing ? 'border-yellow-500 text-yellow-500 hover:bg-yellow-500/10' : 'border-white/10 hover:text-white'}`}
-            title={isEditing ? `Editar ${label}` : label}
-        >
-            <Icon size={20} />
-            {isEditing && (
-                <span className="absolute -top-1 -right-1 bg-yellow-500 text-black rounded-full p-0.5">
-                    <Edit2 size={8} />
-                </span>
-            )}
-        </button>
-    );
+  const handleClick = () => {
+    if (isEditing) {
+      const newLink = prompt(`Editar Link do ${label}:`, link);
+      if (newLink !== null) onUpdate(newLink);
+    } else {
+      if (link) window.open(link, '_blank');
+    }
+  };
+  return (
+    <button
+      onClick={handleClick}
+      className={`p-3 transition-colors border rounded-full relative group ${isEditing ? 'border-yellow-500 text-yellow-500 hover:bg-yellow-500/10' : 'border-white/10 hover:text-white'}`}
+      title={isEditing ? `Editar ${label}` : label}
+    >
+      <Icon size={20} />
+      {isEditing && (
+        <span className="absolute -top-1 -right-1 bg-yellow-500 text-black rounded-full p-0.5">
+          <Edit2 size={8} />
+        </span>
+      )}
+    </button>
+  );
 };
 
 const ImageWithLoader = ({ src, alt, className, style, onClick }) => {
-    const [progress, setProgress] = useState(0);
-    const [imgLoading, setImgLoading] = useState(true);
-    const [currentSrc, setCurrentSrc] = useState(null);
-    const [error, setError] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [imgLoading, setImgLoading] = useState(true);
+  const [currentSrc, setCurrentSrc] = useState(null);
+  const [error, setError] = useState(false);
 
-    useEffect(() => {
-        if (!src) { setError(true); setImgLoading(false); return; }
-        
-        setError(false);
-        setImgLoading(true);
-        setProgress(0);
+  useEffect(() => {
+    if (!src) { setError(true); setImgLoading(false); return; }
 
-        if (src.startsWith('data:') || src.startsWith('blob:')) {
-            setCurrentSrc(src);
-            setImgLoading(false);
-            return;
-        }
+    setError(false);
+    setImgLoading(true);
+    setProgress(0);
 
-        const xhr = new XMLHttpRequest();
-        xhr.open("GET", src, true);
-        xhr.responseType = "blob";
+    if (src.startsWith('data:') || src.startsWith('blob:')) {
+      setCurrentSrc(src);
+      setImgLoading(false);
+      return;
+    }
 
-        xhr.onprogress = (event) => {
-            if (event.lengthComputable) {
-                const percent = Math.round((event.loaded / event.total) * 100);
-                setProgress(percent);
-            }
-        };
+    const xhr = new XMLHttpRequest();
+    xhr.open("GET", src, true);
+    xhr.responseType = "blob";
 
-        xhr.onload = () => {
-            if (xhr.status === 200) {
-                const blobUrl = URL.createObjectURL(xhr.response);
-                setCurrentSrc(blobUrl);
-                setImgLoading(false);
-            } else {
-                setCurrentSrc(src);
-                setImgLoading(false); 
-            }
-        };
+    xhr.onprogress = (event) => {
+      if (event.lengthComputable) {
+        const percent = Math.round((event.loaded / event.total) * 100);
+        setProgress(percent);
+      }
+    };
 
-        xhr.onerror = () => {
-            console.warn("XHR falhou, usando tag img padrão");
-            setCurrentSrc(src);
-            setImgLoading(false);
-        };
+    xhr.onload = () => {
+      if (xhr.status === 200) {
+        const blobUrl = URL.createObjectURL(xhr.response);
+        setCurrentSrc(blobUrl);
+        setImgLoading(false);
+      } else {
+        setCurrentSrc(src);
+        setImgLoading(false);
+      }
+    };
 
-        xhr.send();
+    xhr.onerror = () => {
+      console.warn("XHR falhou, usando tag img padrão");
+      setCurrentSrc(src);
+      setImgLoading(false);
+    };
 
-        return () => {
-            xhr.abort();
-            if (currentSrc && currentSrc.startsWith('blob:') && !src.startsWith('blob:')) {
-                URL.revokeObjectURL(currentSrc);
-            }
-        };
-    }, [src]);
+    xhr.send();
 
-    return (
-        <div className={`relative overflow-hidden bg-[#e5e5e5] flex items-center justify-center ${className}`} style={style} onClick={onClick}>
-            {imgLoading && (
-                <div className="absolute inset-0 flex flex-col items-center justify-center bg-[#f0f0f0] z-10 text-[#593428]">
-                    <Loader className="animate-spin mb-2" size={24}/>
-                    <span className="text-[10px] font-bold uppercase tracking-widest">{progress}%</span>
-                </div>
-            )}
-            
-            {error ? (
-                <div className="flex flex-col items-center justify-center h-full text-gray-400 p-4 text-center w-full">
-                    <ImageOff size={24} className="mb-2 opacity-50"/>
-                    <span className="text-[9px] uppercase tracking-widest opacity-50">Indisponível</span>
-                </div>
-            ) : (
-                <img 
-                    src={currentSrc || src} 
-                    alt={alt} 
-                    className={`w-full h-full object-cover transition-all duration-700 ${imgLoading ? 'opacity-0 scale-95' : 'opacity-100 scale-100'}`}
-                    onError={() => setError(true)}
-                />
-            )}
+    return () => {
+      xhr.abort();
+      if (currentSrc && currentSrc.startsWith('blob:') && !src.startsWith('blob:')) {
+        URL.revokeObjectURL(currentSrc);
+      }
+    };
+  }, [src]);
+
+  return (
+    <div className={`relative overflow-hidden bg-[#e5e5e5] flex items-center justify-center ${className}`} style={style} onClick={onClick}>
+      {imgLoading && (
+        <div className="absolute inset-0 flex flex-col items-center justify-center bg-[#f0f0f0] z-10 text-[#593428]">
+          <Loader className="animate-spin mb-2" size={24} />
+          <span className="text-[10px] font-bold uppercase tracking-widest">{progress}%</span>
         </div>
-    );
+      )}
+
+      {error ? (
+        <div className="flex flex-col items-center justify-center h-full text-gray-400 p-4 text-center w-full">
+          <ImageOff size={24} className="mb-2 opacity-50" />
+          <span className="text-[9px] uppercase tracking-widest opacity-50">Indisponível</span>
+        </div>
+      ) : (
+        <img
+          src={currentSrc || src}
+          alt={alt}
+          className={`w-full h-full object-cover transition-all duration-700 ${imgLoading ? 'opacity-0 scale-95' : 'opacity-100 scale-100'}`}
+          onError={() => setError(true)}
+        />
+      )}
+    </div>
+  );
 };
 
 export default function App() {
@@ -245,26 +253,28 @@ export default function App() {
   const [dataLoaded, setDataLoaded] = useState(false);
   const [loading, setLoading] = useState(true);
   const [loadingText, setLoadingText] = useState('Carregando...');
-  const [appState, setAppState] = useState('loading'); 
-  const [saveStatus, setSaveStatus] = useState('idle'); 
+  const [appState, setAppState] = useState('loading');
+  const [saveStatus, setSaveStatus] = useState('idle');
   const [statusMsg, setStatusMsg] = useState('Iniciando...');
-  
+
   const [user, setUser] = useState(null);
   const [isScrolled, setIsScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [viewingItem, setViewingItem] = useState(null);
   const [currentHeroSlide, setCurrentHeroSlide] = useState(0);
-  
+
   // Drag and Drop
   const [draggedItemIndex, setDraggedIndex] = useState(null);
-  
+
   // Lightbox State
   const [lightboxIndex, setLightboxIndex] = useState(null);
-  
+
   // Admin & Modals
   const [isEditing, setIsEditing] = useState(false);
   const [isDemoMode, setIsDemoMode] = useState(false);
   const [showLogin, setShowLogin] = useState(false);
+  const [loginType, setLoginType] = useState('admin');
+  const [showAdminClientManager, setShowAdminClientManager] = useState(false);
   const [isRegistering, setIsRegistering] = useState(false);
   const [loginEmail, setLoginEmail] = useState('');
   const [loginPass, setLoginPass] = useState('');
@@ -277,7 +287,7 @@ export default function App() {
   const fileInputRef = useRef(null);
   const videoRef = useRef(null);
   const ignoreRemote = useRef(false);
-  const modalScrollRef = useRef(null); 
+  const modalScrollRef = useRef(null);
 
   // --- DEFAULT CONTENT ---
   const defaultContent = {
@@ -295,7 +305,7 @@ export default function App() {
     videoTagline: "Cinematografia",
     videoTitle: "Cinema Documental",
     videoDescription: "Capturamos o movimento e a emoção. Nossos filmes são documentários da sua herança familiar.",
-    videoSectionUrl: "", 
+    videoSectionUrl: "",
     portfolioSubtitle: "Histórias de Amor",
     portfolioTitle: "Portfólio Selecionado",
     teamTitle: "Quem Somos",
@@ -305,10 +315,10 @@ export default function App() {
     ],
     contactTitle: "Vamos criar algo juntos?",
     contactButton: "Fale Conosco",
-    contactLink: "https://wa.me/5511999999999", 
+    contactLink: "https://wa.me/5511999999999",
     footerCopyright: "© 2024 VN Pedroni Fotografia.",
     socialInstagram: "https://instagram.com",
-    socialPinterest: "https://pinterest.com" 
+    socialPinterest: "https://pinterest.com"
   };
 
   const [content, setContent] = useState(defaultContent);
@@ -323,32 +333,46 @@ export default function App() {
           setContent(prev => ({ ...prev, ...localContent }));
           ignoreRemote.current = true;
         }
-        
+
         const localItems = await idb.get(STORE_ITEMS, 'list');
         if (localItems && Array.isArray(localItems) && localItems.length > 0) {
           setItems(localItems);
           ignoreRemote.current = true;
         }
         setAppState('ready');
-      } catch(e) { 
-        console.error("Erro boot local:", e); 
-        setAppState('ready'); 
-      } finally { 
+      } catch (e) {
+        console.error("Erro boot local:", e);
+        setAppState('ready');
+      } finally {
         setDataLoaded(true);
-        setLoading(false); 
+        setLoading(false);
       }
     };
     setTimeout(boot, 500);
   }, []);
 
-  // --- 2. AUTHENTICATION (PÚBLICO) ---
+  // --- 2. AUTHENTICATION (PÚBLICO E CLIENTES) ---
   useEffect(() => {
     if (!firebaseInitialized) return;
-    const unsub = onAuthStateChanged(auth, (u) => {
+    const unsub = onAuthStateChanged(auth, async (u) => {
       setUser(u);
-      if (u) {
-        setStatusMsg(u.isAnonymous ? "Visitante" : "Admin Online");
-      } else {
+      if (u && !u.isAnonymous) {
+        try {
+          const { getDoc, doc } = await import('firebase/firestore');
+          const docSnap = await getDoc(doc(db, 'clients', u.uid));
+          if (docSnap.exists()) {
+            setLoginType('client');
+            setAppState('client-dashboard');
+          } else {
+            setLoginType('admin');
+            setIsEditing(true);
+          }
+        } catch(e) {
+          setLoginType('admin');
+          setIsEditing(true);
+        }
+        setStatusMsg("Online");
+      } else if (!u) {
         signInAnonymously(auth).catch(() => setStatusMsg("Modo Leitura"));
       }
     });
@@ -361,27 +385,27 @@ export default function App() {
     if (ignoreRemote.current) return;
 
     try {
-        const unsubContent = onSnapshot(doc(db, 'artifacts', appId, 'public', 'data', 'site_content', 'main_doc'), (snap) => {
-          if (snap.exists()) setContent(prev => ({ ...prev, ...snap.data() }));
-        }, err => console.log("Sync content error (ok se offline)"));
+      const unsubContent = onSnapshot(doc(db, 'artifacts', appId, 'public', 'data', 'site_content', 'main_doc'), (snap) => {
+        if (snap.exists()) setContent(prev => ({ ...prev, ...snap.data() }));
+      }, err => console.log("Sync content error (ok se offline)"));
 
-        const unsubItems = onSnapshot(doc(db, 'artifacts', appId, 'public', 'data', 'site_portfolio', 'items_doc'), (snap) => {
-          if (snap.exists()) setItems(snap.data().items || []);
-        }, err => console.log("Sync items error (ok se offline)"));
+      const unsubItems = onSnapshot(doc(db, 'artifacts', appId, 'public', 'data', 'site_portfolio', 'items_doc'), (snap) => {
+        if (snap.exists()) setItems(snap.data().items || []);
+      }, err => console.log("Sync items error (ok se offline)"));
 
-        return () => { unsubContent(); unsubItems(); };
-    } catch(e) {}
+      return () => { unsubContent(); unsubItems(); };
+    } catch (e) { }
   }, [user, isEditing]);
 
   // --- 4. PERSISTÊNCIA UNIFICADA ---
   const saveAll = async () => {
     setSaveStatus('saving');
     setStatusMsg("Salvando...");
-    
+
     try {
       await idb.put(STORE_CONTENT, 'main', content);
       await idb.put(STORE_ITEMS, 'list', items);
-      
+
       if (user && user.email && firebaseInitialized && !isDemoMode) {
         await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'site_content', 'main_doc'), content);
         await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'site_portfolio', 'items_doc'), { items });
@@ -392,11 +416,11 @@ export default function App() {
         setStatusMsg("Salvo Localmente");
       }
     } catch (err) {
-      setSaveStatus('saved-local'); 
+      setSaveStatus('saved-local');
       setStatusMsg("Salvo Local (Erro Rede)");
     }
-    
-    setTimeout(() => { if(saveStatus !== 'error') setSaveStatus('idle'); }, 3000);
+
+    setTimeout(() => { if (saveStatus !== 'error') setSaveStatus('idle'); }, 3000);
   };
 
   useEffect(() => {
@@ -423,33 +447,33 @@ export default function App() {
 
     const MAX_MB = 15;
     const bigFile = files.find(f => f.size > MAX_MB * 1024 * 1024);
-    if (bigFile && !confirm(`Arquivo grande (${(bigFile.size/1024/1024).toFixed(1)}MB). O site pode ficar lento. Continuar?`)) return;
+    if (bigFile && !confirm(`Arquivo grande (${(bigFile.size / 1024 / 1024).toFixed(1)}MB). O site pode ficar lento. Continuar?`)) return;
 
     setLoading(true);
     setLoadingText('Iniciando...');
 
     try {
       const urls = [];
-      
+
       for (let i = 0; i < files.length; i++) {
-          const f = files[i];
-          let url = null;
-          
-          if (user.email && firebaseInitialized && !isDemoMode) {
-            try {
-               const storageRef = ref(storage, `uploads/${appId}/${Date.now()}_${f.name}`);
-               await uploadBytes(storageRef, f);
-               url = await getDownloadURL(storageRef);
-            } catch (err) { console.warn("Erro Storage, fallback local", err); }
-          }
-          
-          if (!url) {
-             setLoadingText(`Salvando ${f.name} (Local)...`);
-             url = await convertToBase64(f);
-          }
-          urls.push(url);
+        const f = files[i];
+        let url = null;
+
+        if (user.email && firebaseInitialized && !isDemoMode) {
+          try {
+            const storageRef = ref(storage, `uploads/${appId}/${Date.now()}_${f.name}`);
+            await uploadBytes(storageRef, f);
+            url = await getDownloadURL(storageRef);
+          } catch (err) { console.warn("Erro Storage, fallback local", err); }
+        }
+
+        if (!url) {
+          setLoadingText(`Salvando ${f.name} (Local)...`);
+          url = await convertToBase64(f);
+        }
+        urls.push(url);
       }
-      
+
       callback(multiple ? urls : urls[0]);
       ignoreRemote.current = true;
       setTimeout(saveAll, 500);
@@ -477,7 +501,6 @@ export default function App() {
       if (isRegistering) await createUserWithEmailAndPassword(auth, loginEmail, loginPass);
       else await signInWithEmailAndPassword(auth, loginEmail, loginPass);
       setShowLogin(false);
-      setIsEditing(true);
       setIsDemoMode(false);
     } catch (err) {
       if (err.code === 'auth/operation-not-allowed') {
@@ -494,12 +517,12 @@ export default function App() {
 
   // --- ACTIONS ---
   const handleContentChange = (k, v) => { setContent(p => ({ ...p, [k]: v })); ignoreRemote.current = true; };
-  const scrollToSection = (id) => { 
+  const scrollToSection = (id) => {
     const el = document.getElementById(id);
-    if(el) el.scrollIntoView({ behavior: 'smooth' }); 
-    setMenuOpen(false); 
+    if (el) el.scrollIntoView({ behavior: 'smooth' });
+    setMenuOpen(false);
   };
-  
+
   // --- LAYOUT E REORDENAÇÃO ---
   const handleAddItem = (e) => {
     e.preventDefault();
@@ -511,26 +534,26 @@ export default function App() {
     setShowAddItemModal(false);
     setNewItem({ title: '', location: '', image: '', category: '', gallery: [] });
   };
-  
+
   const handleUpdateSize = (itemId, idx) => {
     const updated = items.map(it => {
       if (it.id !== itemId) return it;
       let g = normalizeGallery(it.gallery);
       const current = g[idx].size || 'landscape';
-      
+
       // Ciclo: landscape (2x1) -> square (1x1) -> portrait (1x2)
       let nextSize = 'landscape';
       if (current === 'landscape') nextSize = 'square';
       else if (current === 'square') nextSize = 'portrait';
-      
+
       // Se for vídeo, força landscape
       if (g[idx].type === 'video') nextSize = 'landscape';
-      
+
       g[idx].size = nextSize;
-      
-      const n = items.map(x => x.id === viewingItem.id ? {...x, gallery: g} : x);
+
+      const n = items.map(x => x.id === viewingItem.id ? { ...x, gallery: g } : x);
       setItems(n);
-      setViewingItem({...viewingItem, gallery: g});
+      setViewingItem({ ...viewingItem, gallery: g });
       ignoreRemote.current = true;
     });
     setItems(updated);
@@ -571,31 +594,31 @@ export default function App() {
     g.splice(draggedItemIndex, 1);
     g.splice(targetIndex, 0, draggedItem);
 
-    const n = items.map(x => x.id === viewingItem.id ? {...x, gallery: g} : x);
+    const n = items.map(x => x.id === viewingItem.id ? { ...x, gallery: g } : x);
     setItems(n);
-    setViewingItem({...viewingItem, gallery: g});
+    setViewingItem({ ...viewingItem, gallery: g });
     ignoreRemote.current = true;
   };
 
   const getLabelForSize = (s, type) => {
-      if (type === 'video') return 'Video (2x1)';
-      switch(s) {
-          case 'landscape': return 'Paisagem (2x1)';
-          case 'square': return 'Quadrado (1x1)';
-          case 'portrait': return 'Retrato (1x2)';
-          default: return 'Normal';
-      }
+    if (type === 'video') return 'Video (2x1)';
+    switch (s) {
+      case 'landscape': return 'Paisagem (2x1)';
+      case 'square': return 'Quadrado (1x1)';
+      case 'portrait': return 'Retrato (1x2)';
+      default: return 'Normal';
+    }
   };
 
   // LIGHTBOX LOGIC
   useEffect(() => {
     const handleKeyDown = (e) => {
-        if (lightboxIndex === null || !viewingItem) return;
-        const gallery = normalizeGallery(viewingItem.gallery);
-        
-        if (e.key === 'Escape') setLightboxIndex(null);
-        if (e.key === 'ArrowRight') setLightboxIndex((lightboxIndex + 1) % gallery.length);
-        if (e.key === 'ArrowLeft') setLightboxIndex((lightboxIndex - 1 + gallery.length) % gallery.length);
+      if (lightboxIndex === null || !viewingItem) return;
+      const gallery = normalizeGallery(viewingItem.gallery);
+
+      if (e.key === 'Escape') setLightboxIndex(null);
+      if (e.key === 'ArrowRight') setLightboxIndex((lightboxIndex + 1) % gallery.length);
+      if (e.key === 'ArrowLeft') setLightboxIndex((lightboxIndex - 1 + gallery.length) % gallery.length);
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
@@ -611,50 +634,50 @@ export default function App() {
 
   useEffect(() => {
     if (!dataLoaded) return;
-    
+
     const setupObserver = (root = null) => {
-        const observer = new IntersectionObserver((entries) => {
-            entries.forEach(entry => {
-                if (entry.isIntersecting) {
-                    entry.target.classList.add('active');
-                }
-            });
-        }, { threshold: 0.01, root: root, rootMargin: '20px' }); 
-        
-        const elements = root ? root.querySelectorAll('.reveal') : document.querySelectorAll('.reveal');
-        elements.forEach(el => observer.observe(el));
-        return observer;
+      const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add('active');
+          }
+        });
+      }, { threshold: 0.01, root: root, rootMargin: '20px' });
+
+      const elements = root ? root.querySelectorAll('.reveal') : document.querySelectorAll('.reveal');
+      elements.forEach(el => observer.observe(el));
+      return observer;
     };
 
     const mainObserver = setupObserver(null);
     let modalObserver = null;
 
     if (viewingItem && modalScrollRef.current) {
+      setTimeout(() => {
+        modalObserver = setupObserver(modalScrollRef.current);
         setTimeout(() => {
-             modalObserver = setupObserver(modalScrollRef.current);
-             setTimeout(() => {
-                 const modalElements = document.querySelectorAll('.modal-content .reveal');
-                 modalElements.forEach(el => el.classList.add('active'));
-             }, 800);
-        }, 100);
+          const modalElements = document.querySelectorAll('.modal-content .reveal');
+          modalElements.forEach(el => el.classList.add('active'));
+        }, 800);
+      }, 100);
     } else {
-        setTimeout(() => {
-             document.querySelectorAll('.reveal').forEach(el => el.classList.add('active'));
-        }, 500);
+      setTimeout(() => {
+        document.querySelectorAll('.reveal').forEach(el => el.classList.add('active'));
+      }, 500);
     }
-    
+
     return () => {
-        mainObserver.disconnect();
-        if (modalObserver) modalObserver.disconnect();
+      mainObserver.disconnect();
+      if (modalObserver) modalObserver.disconnect();
     };
   }, [items, content, viewingItem, menuOpen, dataLoaded]);
 
   if ((appState === 'loading' || loading) && !dataLoaded) {
     return (
-        <div className="h-screen bg-[#1a1a1a] flex items-center justify-center text-[#EADDCE] flex-col gap-4">
-            <Loader className="animate-spin" size={40}/>
-            <span className="text-xs tracking-widest uppercase">{loadingText || "Carregando..."}</span>
-        </div>
+      <div className="h-screen bg-[#1a1a1a] flex items-center justify-center text-[#EADDCE] flex-col gap-4">
+        <Loader className="animate-spin" size={40} />
+        <span className="text-xs tracking-widest uppercase">{loadingText || "Carregando..."}</span>
+      </div>
     );
   }
 
@@ -673,28 +696,29 @@ export default function App() {
       <input type="file" ref={fileInputRef} className="hidden" />
 
       {/* ADMIN BAR */}
-      {(user?.email || isEditing) && (
+      {((user?.email && loginType === 'admin') || isEditing) && (
         <div className="fixed top-0 w-full bg-[#593428] text-[#EADDCE] z-[100] py-2 px-6 flex justify-between items-center text-[10px] font-bold tracking-[0.2em] shadow-xl">
           <div className="flex items-center gap-4">
-             <span className="bg-white/10 px-2 py-0.5 rounded">VN ADMIN</span>
-             {isEditing && <span className="text-yellow-400 animate-pulse">● EDITANDO</span>}
-             <div className="flex items-center gap-2 border-l border-white/20 pl-4 ml-2">
-                {saveStatus === 'saving' && <span className="text-white animate-pulse flex items-center gap-1"><RefreshCw size={10} className="animate-spin"/> Salvando...</span>}
-                {saveStatus === 'saved' && <span className="text-green-400 flex items-center gap-1"><Cloud size={10}/> Nuvem</span>}
-                {saveStatus === 'saved-local' && <span className="text-orange-400 flex items-center gap-1"><HardDrive size={10}/> Local</span>}
-                {saveStatus === 'error' && <span className="text-red-400 flex items-center gap-1"><AlertCircle size={10}/> Erro</span>}
-                <span className="opacity-50 text-[9px] hidden md:inline">| {String(statusMsg)}</span>
-             </div>
+            <span className="bg-white/10 px-2 py-0.5 rounded">VN ADMIN</span>
+            {isEditing && <span className="text-yellow-400 animate-pulse">● EDITANDO</span>}
+            <div className="flex items-center gap-2 border-l border-white/20 pl-4 ml-2">
+              {saveStatus === 'saving' && <span className="text-white animate-pulse flex items-center gap-1"><RefreshCw size={10} className="animate-spin" /> Salvando...</span>}
+              {saveStatus === 'saved' && <span className="text-green-400 flex items-center gap-1"><Cloud size={10} /> Nuvem</span>}
+              {saveStatus === 'saved-local' && <span className="text-orange-400 flex items-center gap-1"><HardDrive size={10} /> Local</span>}
+              {saveStatus === 'error' && <span className="text-red-400 flex items-center gap-1"><AlertCircle size={10} /> Erro</span>}
+              <span className="opacity-50 text-[9px] hidden md:inline">| {String(statusMsg)}</span>
+            </div>
           </div>
           <div className="flex gap-3">
             <button onClick={() => saveAll()} className="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-500 transition-colors flex items-center gap-2">
-               <Save size={12}/> SALVAR AGORA
+              <Save size={12} /> SALVAR AGORA
             </button>
+            <button onClick={() => setShowAdminClientManager(true)} className="border border-white/20 px-3 py-1 rounded bg-yellow-600/20 text-yellow-500 hover:bg-yellow-500 hover:text-black transition-colors">CLIENTES</button>
             <button onClick={() => setShowHeroManager(true)} className="border border-white/20 px-3 py-1 rounded hover:bg-white hover:text-black transition-colors">CAPA</button>
             <button onClick={() => setIsEditing(!isEditing)} className={`px-4 py-1 rounded transition-colors ${isEditing ? 'bg-yellow-500 text-black' : 'border border-white/20 hover:bg-white hover:text-black'}`}>
               {isEditing ? 'CONCLUIR' : 'EDITAR'}
             </button>
-            <button onClick={() => { if(auth) signOut(auth); setUser(null); setIsEditing(false); }} className="bg-red-900/40 p-1.5 rounded-full hover:bg-red-600 transition-colors"><LogOut size={14}/></button>
+            <button onClick={() => { if (auth) signOut(auth); setUser(null); setIsEditing(false); }} className="bg-red-900/40 p-1.5 rounded-full hover:bg-red-600 transition-colors"><LogOut size={14} /></button>
           </div>
         </div>
       )}
@@ -703,14 +727,19 @@ export default function App() {
       <nav className={`fixed w-full z-50 transition-all duration-500 ${isScrolled || user?.email ? 'bg-[#593428] shadow-md py-4' : 'bg-transparent py-8'} ${user?.email ? 'top-8' : 'top-0'}`}>
         <div className="max-w-7xl mx-auto px-6 flex justify-between items-center">
           <div className="transition-colors cursor-pointer text-[#EADDCE]" onClick={() => scrollToSection('home')}>
-             <div className="font-serif leading-none">
-                <span className="text-2xl md:text-3xl font-bold tracking-tighter uppercase block">VN PEDRONI</span>
-                <span className="text-[8px] md:text-[10px] tracking-[0.4em] uppercase opacity-70">Fotografia</span>
-             </div>
+            <div className="font-serif leading-none">
+              <span className="text-2xl md:text-3xl font-bold tracking-tighter uppercase block">VN PEDRONI</span>
+              <span className="text-[8px] md:text-[10px] tracking-[0.4em] uppercase opacity-70">Fotografia</span>
+            </div>
           </div>
-          <button onClick={() => setMenuOpen(true)} className="p-2 rounded-full transition-colors text-[#EADDCE] hover:bg-white/10">
-            <Menu size={32}/>
-          </button>
+          <div className="flex items-center gap-6">
+            <button onClick={() => { setLoginType('client'); setShowLogin(true); }} className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#EADDCE] hover:text-yellow-500 transition-colors hidden md:flex items-center gap-2">
+              <Lock size={12} /> Área do Cliente
+            </button>
+            <button onClick={() => setMenuOpen(true)} className="p-2 rounded-full transition-colors text-[#EADDCE] hover:bg-white/10">
+              <Menu size={32} />
+            </button>
+          </div>
         </div>
       </nav>
 
@@ -725,9 +754,14 @@ export default function App() {
               </button>
             ))}
             {!user?.email && (
-              <button onClick={() => { setShowLogin(true); setMenuOpen(false); }} className="mt-8 text-[10px] font-bold uppercase tracking-[0.4em] text-[#EADDCE]/50 border border-[#EADDCE]/20 px-8 py-3 rounded-full hover:border-white hover:text-white transition-all flex items-center gap-2">
-                <Lock size={12}/> Área Restrita
-              </button>
+              <div className="flex flex-col items-center mt-6">
+                <button onClick={() => { setLoginType('client'); setShowLogin(true); setMenuOpen(false); }} className="text-[12px] font-bold uppercase tracking-[0.4em] text-[#EADDCE] border border-[#EADDCE]/50 px-8 py-3 rounded hover:bg-white hover:text-[#593428] transition-all flex items-center gap-2">
+                  <Lock size={14} /> Área do Cliente
+                </button>
+                <button onClick={() => { setLoginType('admin'); setShowLogin(true); setMenuOpen(false); }} className="mt-6 text-[9px] font-bold uppercase tracking-widest text-[#EADDCE]/30 hover:text-white transition-all">
+                  Acesso Admin
+                </button>
+              </div>
             )}
           </div>
         </div>
@@ -768,14 +802,14 @@ export default function App() {
       {/* MARQUEE */}
       <section className="py-20 bg-[#593428] overflow-hidden reveal">
         <div className="text-center mb-12">
-           <EditableText id="marqueeTitle" tag="h3" className="text-2xl font-serif italic text-[#EADDCE]" value={content.marqueeTitle} isEditing={isEditing} onChange={handleContentChange} />
-           {isEditing && <button onClick={() => triggerFileUpload(urls => handleContentChange('marqueeImages', [...(content.marqueeImages || []), ...urls]), true)} className="mt-4 bg-[#EADDCE] text-[#593428] px-3 py-1 text-[8px] font-bold uppercase rounded-full hover:scale-105 transition-transform">Adicionar Fotos</button>}
+          <EditableText id="marqueeTitle" tag="h3" className="text-2xl font-serif italic text-[#EADDCE]" value={content.marqueeTitle} isEditing={isEditing} onChange={handleContentChange} />
+          {isEditing && <button onClick={() => triggerFileUpload(urls => handleContentChange('marqueeImages', [...(content.marqueeImages || []), ...urls]), true)} className="mt-4 bg-[#EADDCE] text-[#593428] px-3 py-1 text-[8px] font-bold uppercase rounded-full hover:scale-105 transition-transform">Adicionar Fotos</button>}
         </div>
         <div className="flex w-max animate-marquee gap-6">
           {content.marqueeImages && [...content.marqueeImages, ...content.marqueeImages].map((img, i) => (
             <div key={i} className="relative h-80 w-64 group overflow-hidden shadow-xl rounded-sm">
-               <ImageWithLoader src={img} alt="" className="h-full w-full" />
-               {isEditing && i < (content.marqueeImages.length) && <button onClick={() => {let l = [...content.marqueeImages]; l.splice(i,1); handleContentChange('marqueeImages', l);}} className="absolute top-2 right-2 bg-red-600 text-white p-2 rounded-full shadow-lg hover:bg-red-700 transition-colors"><Trash2 size={12}/></button>}
+              <ImageWithLoader src={img} alt="" className="h-full w-full" />
+              {isEditing && i < (content.marqueeImages.length) && <button onClick={() => { let l = [...content.marqueeImages]; l.splice(i, 1); handleContentChange('marqueeImages', l); }} className="absolute top-2 right-2 bg-red-600 text-white p-2 rounded-full shadow-lg hover:bg-red-700 transition-colors"><Trash2 size={12} /></button>}
             </div>
           ))}
         </div>
@@ -790,19 +824,19 @@ export default function App() {
             <EditableText id="videoDescription" tag="p" className="text-gray-500 leading-relaxed font-light text-lg" value={content.videoDescription} isEditing={isEditing} onChange={handleContentChange} />
           </div>
           <div className="order-1 md:order-2 relative aspect-video group shadow-2xl rounded-sm bg-black overflow-hidden">
-             {content.videoSectionUrl ? (
-                <video key={content.videoSectionUrl} src={content.videoSectionUrl} controls className="w-full h-full object-cover" playsInline />
-             ) : (
-                <div className="w-full h-full flex flex-col items-center justify-center text-gray-500 gap-4">
-                   <Film size={40} className="opacity-50"/>
-                   <span className="text-xs uppercase tracking-widest">Nenhum filme selecionado</span>
-                </div>
-             )}
-             {isEditing && (
-                <button onClick={() => triggerFileUpload(url => handleContentChange('videoSectionUrl', url))} className="absolute bottom-4 right-4 bg-white text-black px-4 py-2 text-[10px] uppercase font-bold shadow-lg hover:bg-[#EADDCE] transition-colors z-20 flex items-center gap-2">
-                  <Upload size={14}/> {content.videoSectionUrl ? 'Trocar Filme' : 'Adicionar Filme'}
-                </button>
-             )}
+            {content.videoSectionUrl ? (
+              <video key={content.videoSectionUrl} src={content.videoSectionUrl} controls className="w-full h-full object-cover" playsInline />
+            ) : (
+              <div className="w-full h-full flex flex-col items-center justify-center text-gray-500 gap-4">
+                <Film size={40} className="opacity-50" />
+                <span className="text-xs uppercase tracking-widest">Nenhum filme selecionado</span>
+              </div>
+            )}
+            {isEditing && (
+              <button onClick={() => triggerFileUpload(url => handleContentChange('videoSectionUrl', url))} className="absolute bottom-4 right-4 bg-white text-black px-4 py-2 text-[10px] uppercase font-bold shadow-lg hover:bg-[#EADDCE] transition-colors z-20 flex items-center gap-2">
+                <Upload size={14} /> {content.videoSectionUrl ? 'Trocar Filme' : 'Adicionar Filme'}
+              </button>
+            )}
           </div>
         </div>
       </section>
@@ -814,16 +848,16 @@ export default function App() {
             <EditableText id="portfolioSubtitle" tag="span" className="text-[10px] font-bold uppercase tracking-widest opacity-50 block mb-2" value={content.portfolioSubtitle} isEditing={isEditing} onChange={handleContentChange} />
             <EditableText id="portfolioTitle" tag="h2" className="text-4xl md:text-6xl font-serif" value={content.portfolioTitle} isEditing={isEditing} onChange={handleContentChange} />
           </div>
-          {isEditing && <button onClick={() => setShowAddItemModal(true)} className="bg-[#593428] text-[#EADDCE] px-8 py-4 text-[10px] font-bold uppercase tracking-widest hover:brightness-110 shadow-lg flex items-center gap-2"><Plus size={16}/> Novo Trabalho</button>}
+          {isEditing && <button onClick={() => setShowAddItemModal(true)} className="bg-[#593428] text-[#EADDCE] px-8 py-4 text-[10px] font-bold uppercase tracking-widest hover:brightness-110 shadow-lg flex items-center gap-2"><Plus size={16} /> Novo Trabalho</button>}
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
           {items.map((item, i) => (
-            <div key={item.id} className="group cursor-pointer reveal bg-white shadow-sm hover:shadow-2xl transition-all duration-500 pb-10" style={{ transitionDelay: `${(i % 3)*150}ms` }} onClick={() => setViewingItem(item)}>
+            <div key={item.id} className="group cursor-pointer reveal bg-white shadow-sm hover:shadow-2xl transition-all duration-500 pb-10" style={{ transitionDelay: `${(i % 3) * 150}ms` }} onClick={() => setViewingItem(item)}>
               <div className="relative aspect-[3/4] overflow-hidden mb-8 bg-gray-100">
                 <ImageWithLoader src={item.image} alt={item.title} className="h-full w-full" />
-                {isEditing && <button onClick={(e) => { e.stopPropagation(); if(confirm("Apagar Álbum?")) { const n = items.filter(x => x.id !== item.id); setItems(n); ignoreRemote.current = true; } }} className="absolute top-4 right-4 bg-red-600 text-white p-3 rounded-full shadow-lg z-20"><Trash2 size={16}/></button>}
+                {isEditing && <button onClick={(e) => { e.stopPropagation(); if (confirm("Apagar Álbum?")) { const n = items.filter(x => x.id !== item.id); setItems(n); ignoreRemote.current = true; } }} className="absolute top-4 right-4 bg-red-600 text-white p-3 rounded-full shadow-lg z-20"><Trash2 size={16} /></button>}
                 <div className="absolute inset-0 bg-[#593428]/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                   <span className="bg-[#FAF9F6] text-[#593428] px-8 py-4 text-[10px] font-bold uppercase tracking-[0.2em] shadow-xl">Explorar Galeria</span>
+                  <span className="bg-[#FAF9F6] text-[#593428] px-8 py-4 text-[10px] font-bold uppercase tracking-[0.2em] shadow-xl">Explorar Galeria</span>
                 </div>
               </div>
               <div className="px-8 text-center">
@@ -848,10 +882,10 @@ export default function App() {
               <div className="h-[650px] overflow-hidden mb-10 relative shadow-2xl rounded-sm">
                 <ImageWithLoader src={m.image} alt={m.name} className="h-full w-full" />
                 {isEditing && (
-                   <div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity gap-4">
-                      <button onClick={() => triggerFileUpload(url => { let l = [...content.teamMembers]; l[i].image = url; handleContentChange('teamMembers', l); })} className="bg-white text-black px-6 py-2 text-[10px] font-bold uppercase rounded-full shadow-xl hover:bg-[#EADDCE]">Trocar Foto</button>
-                      <input value={m.name} onChange={e => { let l = [...content.teamMembers]; l[i].name = e.target.value; handleContentChange('teamMembers', l); }} className="bg-white/20 border border-white/30 text-white text-center p-2 rounded w-64 focus:bg-white/30 outline-none" placeholder="Nome do membro" />
-                   </div>
+                  <div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity gap-4">
+                    <button onClick={() => triggerFileUpload(url => { let l = [...content.teamMembers]; l[i].image = url; handleContentChange('teamMembers', l); })} className="bg-white text-black px-6 py-2 text-[10px] font-bold uppercase rounded-full shadow-xl hover:bg-[#EADDCE]">Trocar Foto</button>
+                    <input value={m.name} onChange={e => { let l = [...content.teamMembers]; l[i].name = e.target.value; handleContentChange('teamMembers', l); }} className="bg-white/20 border border-white/30 text-white text-center p-2 rounded w-64 focus:bg-white/30 outline-none" placeholder="Nome do membro" />
+                  </div>
                 )}
               </div>
               {!isEditing && (
@@ -869,28 +903,28 @@ export default function App() {
       <footer id="contact" className="bg-[#593428] text-[#EADDCE] py-32 px-6 text-center">
         <div className="reveal">
           <EditableText id="contactTitle" tag="h2" className="text-4xl md:text-8xl font-serif mb-16 text-white leading-tight max-w-4xl mx-auto tracking-tighter" value={content.contactTitle} isEditing={isEditing} onChange={handleContentChange} />
-          
+
           {/* BOTÃO FALE CONOSCO EDITÁVEL */}
           <div className="flex justify-center mb-24">
-             {isEditing ? (
-                 <button onClick={() => {
-                     const newLink = prompt("Link do Fale Conosco:", content.contactLink);
-                     if(newLink) handleContentChange('contactLink', newLink);
-                 }} className="border border-yellow-500 text-yellow-500 px-16 py-6 text-[10px] font-bold uppercase tracking-[0.5em] hover:bg-yellow-500/10 flex items-center gap-3">
-                     <Edit2 size={12}/> Editar Link do Botão
-                 </button>
-             ) : (
-                 <button onClick={() => window.open(content.contactLink, '_blank')} className="border border-[#EADDCE] px-16 py-6 text-[10px] font-bold uppercase tracking-[0.5em] hover:bg-[#EADDCE] hover:text-[#593428] transition-all rounded-sm shadow-2xl">
-                    {content.contactButton}
-                 </button>
-             )}
+            {isEditing ? (
+              <button onClick={() => {
+                const newLink = prompt("Link do Fale Conosco:", content.contactLink);
+                if (newLink) handleContentChange('contactLink', newLink);
+              }} className="border border-yellow-500 text-yellow-500 px-16 py-6 text-[10px] font-bold uppercase tracking-[0.5em] hover:bg-yellow-500/10 flex items-center gap-3">
+                <Edit2 size={12} /> Editar Link do Botão
+              </button>
+            ) : (
+              <button onClick={() => window.open(content.contactLink, '_blank')} className="border border-[#EADDCE] px-16 py-6 text-[10px] font-bold uppercase tracking-[0.5em] hover:bg-[#EADDCE] hover:text-[#593428] transition-all rounded-sm shadow-2xl">
+                {content.contactButton}
+              </button>
+            )}
           </div>
-          
+
           <div className="flex justify-center gap-12 opacity-50 mb-20">
             <SmartSocialButton icon={Instagram} label="Instagram" link={content.socialInstagram} isEditing={isEditing} onUpdate={(l) => handleContentChange('socialInstagram', l)} />
             <SmartSocialButton icon={PinterestIcon} label="Pinterest" link={content.socialPinterest} isEditing={isEditing} onUpdate={(l) => handleContentChange('socialPinterest', l)} />
           </div>
-          
+
           <p className="text-[10px] uppercase tracking-[0.4em] opacity-20 font-sans mb-12">{content.footerCopyright}</p>
         </div>
       </footer>
@@ -898,137 +932,137 @@ export default function App() {
       {/* MODAL ÁLBUM */}
       {viewingItem && !lightboxIndex && lightboxIndex !== 0 && (
         <div className="fixed inset-0 z-[150] bg-[#FAF9F6] overflow-y-auto animate-fade-in p-6 md:p-20 modal-content" ref={modalScrollRef}>
-          <button onClick={() => setViewingItem(null)} className="fixed top-8 right-8 bg-[#593428] text-[#EADDCE] p-4 rounded-full z-[160] hover:scale-110 shadow-2xl transition-transform"><X size={28}/></button>
+          <button onClick={() => setViewingItem(null)} className="fixed top-8 right-8 bg-[#593428] text-[#EADDCE] p-4 rounded-full z-[160] hover:scale-110 shadow-2xl transition-transform"><X size={28} /></button>
           <div className="max-w-7xl mx-auto">
-             <div className="text-center mb-20 reveal active">
-                <h2 className="text-5xl md:text-9xl font-serif leading-none mb-6 tracking-tighter">{viewingItem.title}</h2>
-                <div className="flex justify-center gap-8 text-[11px] uppercase tracking-[0.4em] opacity-50 font-bold">
-                   <span>{viewingItem.location}</span>
-                   <span>•</span>
-                   <span>{viewingItem.category}</span>
+            <div className="text-center mb-20 reveal active">
+              <h2 className="text-5xl md:text-9xl font-serif leading-none mb-6 tracking-tighter">{viewingItem.title}</h2>
+              <div className="flex justify-center gap-8 text-[11px] uppercase tracking-[0.4em] opacity-50 font-bold">
+                <span>{viewingItem.location}</span>
+                <span>•</span>
+                <span>{viewingItem.category}</span>
+              </div>
+            </div>
+
+            {/* GRID DENSE MATEMÁTICO SEM GAPS BRANCOS */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2 auto-rows-[minmax(100px,_auto)] grid-flow-dense">
+              {normalizeGallery(viewingItem.gallery).map((m, i) => (
+                <div
+                  key={i}
+                  className={`relative group reveal active overflow-hidden shadow-xl rounded-lg ${m.size === 'landscape' ? 'col-span-2 row-span-1 aspect-[2/1]' :
+                    m.size === 'square' ? 'col-span-1 row-span-1 aspect-square' :
+                      'col-span-1 row-span-2 aspect-[1/2]'
+                    } bg-[#EADDCE]/20`}
+                  draggable={isEditing}
+                  onDragStart={(e) => handleDragStart(e, i)}
+                  onDragEnd={handleDragEnd}
+                  onDragOver={handleDragOver}
+                  onDrop={(e) => handleDrop(e, i)}
+                >
+                  {m.type === 'video' ? (
+                    <video
+                      src={m.url}
+                      autoPlay
+                      muted
+                      loop
+                      playsInline
+                      className="w-full h-full object-cover absolute inset-0 opacity-0 transition-opacity duration-1000"
+                      onLoadedData={(e) => e.target.classList.remove('opacity-0')}
+                    />
+                  ) : (
+                    <ImageWithLoader
+                      src={m.url}
+                      alt=""
+                      className="w-full h-full absolute inset-0 cursor-pointer hover:opacity-90 transition-opacity"
+                      onClick={() => !isEditing && setLightboxIndex(i)}
+                    />
+                  )}
+
+                  {isEditing && (
+                    <div className="absolute inset-0 bg-black/70 opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center gap-3 z-20 transition-all duration-500 cursor-move">
+                      <GripVertical className="text-white mb-2 opacity-50" />
+                      <div className="flex gap-4">
+                        {/* Botão de Layout (Só aparece se NÃO for vídeo) */}
+                        {m.type !== 'video' && (
+                          <button onClick={() => {
+                            let g = [...viewingItem.gallery];
+                            const sizes = ['landscape', 'square', 'portrait'];
+                            g[i].size = sizes[(sizes.indexOf(g[i].size || 'landscape') + 1) % sizes.length];
+                            const n = items.map(x => x.id === viewingItem.id ? { ...x, gallery: g } : x);
+                            setItems(n);
+                            setViewingItem({ ...viewingItem, gallery: g });
+                            ignoreRemote.current = true;
+                          }} className="bg-[#EADDCE] text-[#593428] px-4 py-2 rounded-full text-[10px] font-bold uppercase w-32 flex justify-center"><LayoutGrid size={14} className="mr-2" /> {
+                              m.size === 'square' ? '1x1' : m.size === 'portrait' ? '1x2' : '2x1'
+                            }</button>
+                        )}
+
+                        <button onClick={() => {
+                          if (!confirm("Remover?")) return;
+                          let g = [...viewingItem.gallery]; g.splice(i, 1);
+                          const n = items.map(x => x.id === viewingItem.id ? { ...x, gallery: g } : x);
+                          setItems(n);
+                          setViewingItem({ ...viewingItem, gallery: g });
+                          ignoreRemote.current = true;
+                        }} className="bg-red-600 text-white p-2 rounded-full"><Trash2 size={16} /></button>
+                      </div>
+                    </div>
+                  )}
                 </div>
-             </div>
-             
-             {/* GRID DENSE MATEMÁTICO SEM GAPS BRANCOS */}
-             <div className="grid grid-cols-2 md:grid-cols-4 gap-2 auto-rows-[minmax(100px,_auto)] grid-flow-dense">
-                {normalizeGallery(viewingItem.gallery).map((m, i) => (
-                  <div 
-                      key={i} 
-                      className={`relative group reveal active overflow-hidden shadow-xl rounded-lg ${
-                          m.size === 'landscape' ? 'col-span-2 row-span-1 aspect-[2/1]' : 
-                          m.size === 'square' ? 'col-span-1 row-span-1 aspect-square' : 
-                          'col-span-1 row-span-2 aspect-[1/2]'
-                      } bg-[#EADDCE]/20`}
-                      draggable={isEditing}
-                      onDragStart={(e) => handleDragStart(e, i)}
-                      onDragEnd={handleDragEnd}
-                      onDragOver={handleDragOver}
-                      onDrop={(e) => handleDrop(e, i)}
-                  >
-                      {m.type === 'video' ? (
-                        <video 
-                           src={m.url} 
-                           autoPlay 
-                           muted 
-                           loop 
-                           playsInline 
-                           className="w-full h-full object-cover absolute inset-0 opacity-0 transition-opacity duration-1000" 
-                           onLoadedData={(e) => e.target.classList.remove('opacity-0')} 
-                        />
-                      ) : (
-                        <ImageWithLoader 
-                            src={m.url} 
-                            alt="" 
-                            className="w-full h-full absolute inset-0 cursor-pointer hover:opacity-90 transition-opacity" 
-                            onClick={() => !isEditing && setLightboxIndex(i)} 
-                        />
-                      )}
-                      
-                      {isEditing && (
-                        <div className="absolute inset-0 bg-black/70 opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center gap-3 z-20 transition-all duration-500 cursor-move">
-                          <GripVertical className="text-white mb-2 opacity-50" />
-                          <div className="flex gap-4">
-                             {/* Botão de Layout (Só aparece se NÃO for vídeo) */}
-                             {m.type !== 'video' && (
-                                 <button onClick={() => {
-                                     let g = [...viewingItem.gallery];
-                                     const sizes = ['landscape', 'square', 'portrait'];
-                                     g[i].size = sizes[(sizes.indexOf(g[i].size || 'landscape') + 1) % sizes.length];
-                                     const n = items.map(x => x.id === viewingItem.id ? {...x, gallery: g} : x);
-                                     setItems(n);
-                                     setViewingItem({...viewingItem, gallery: g});
-                                     ignoreRemote.current = true;
-                                 }} className="bg-[#EADDCE] text-[#593428] px-4 py-2 rounded-full text-[10px] font-bold uppercase w-32 flex justify-center"><LayoutGrid size={14} className="mr-2"/> {
-                                    m.size === 'square' ? '1x1' : m.size === 'portrait' ? '1x2' : '2x1'
-                                 }</button>
-                             )}
-                             
-                             <button onClick={() => { 
-                                if(!confirm("Remover?")) return;
-                                let g = [...viewingItem.gallery]; g.splice(i,1); 
-                                const n = items.map(x => x.id === viewingItem.id ? {...x, gallery: g} : x); 
-                                setItems(n);
-                                setViewingItem({...viewingItem, gallery: g});
-                                ignoreRemote.current = true;
-                             }} className="bg-red-600 text-white p-2 rounded-full"><Trash2 size={16}/></button>
-                          </div>
-                        </div>
-                      )}
-                  </div>
-                ))}
-                {isEditing && (
-                  <div onClick={() => triggerFileUpload(async urls => {
-                      const ns = (Array.isArray(urls) ? urls : [urls]).map(u => ({ url: u, size: 'landscape', type: isVideo(u) ? 'video' : 'image' }));
-                      const g = [...(viewingItem.gallery || []), ...ns];
-                      const n = items.map(x => x.id === viewingItem.id ? {...x, gallery: g} : x);
-                      setItems(n);
-                      setViewingItem({...viewingItem, gallery: g});
-                      ignoreRemote.current = true;
-                  }, true)} className="border-2 border-dashed border-[#593428]/20 flex flex-col items-center justify-center text-[#593428]/40 cursor-pointer hover:bg-white hover:text-[#593428] transition-all bg-white/50 reveal active shadow-inner min-h-[450px] aspect-[2/1] col-span-2">
-                    <Plus size={60}/><span className="text-[12px] font-bold uppercase mt-6">Adicionar Mídia</span>
-                  </div>
-                )}
-             </div>
+              ))}
+              {isEditing && (
+                <div onClick={() => triggerFileUpload(async urls => {
+                  const ns = (Array.isArray(urls) ? urls : [urls]).map(u => ({ url: u, size: 'landscape', type: isVideo(u) ? 'video' : 'image' }));
+                  const g = [...(viewingItem.gallery || []), ...ns];
+                  const n = items.map(x => x.id === viewingItem.id ? { ...x, gallery: g } : x);
+                  setItems(n);
+                  setViewingItem({ ...viewingItem, gallery: g });
+                  ignoreRemote.current = true;
+                }, true)} className="border-2 border-dashed border-[#593428]/20 flex flex-col items-center justify-center text-[#593428]/40 cursor-pointer hover:bg-white hover:text-[#593428] transition-all bg-white/50 reveal active shadow-inner min-h-[450px] aspect-[2/1] col-span-2">
+                  <Plus size={60} /><span className="text-[12px] font-bold uppercase mt-6">Adicionar Mídia</span>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}
 
       {/* LIGHTBOX (APPLE STYLE) */}
       {(lightboxIndex !== null && viewingItem) && (
-          <div className="fixed inset-0 z-[2000] bg-black/95 backdrop-blur-xl flex items-center justify-center animate-fade-in">
-              <button onClick={() => setLightboxIndex(null)} className="absolute top-6 right-6 text-white/50 hover:text-white transition-colors bg-white/10 p-2 rounded-full backdrop-blur-sm z-50">
-                  <X size={24} />
-              </button>
-              
-              <div className="relative w-full h-full flex items-center justify-center p-4">
-                  <img 
-                      src={normalizeGallery(viewingItem.gallery)[lightboxIndex].url} 
-                      className="max-h-[90vh] max-w-[90vw] object-contain shadow-2xl rounded-sm transition-transform duration-300"
-                      alt=""
-                  />
-                  
-                  <button 
-                      onClick={(e) => { e.stopPropagation(); setLightboxIndex((lightboxIndex - 1 + viewingItem.gallery.length) % viewingItem.gallery.length); }}
-                      className="absolute left-4 top-1/2 -translate-y-1/2 text-white/50 hover:text-white bg-white/10 p-4 rounded-full backdrop-blur-sm hover:scale-110 transition-all"
-                  >
-                      <ChevronLeft size={32}/>
-                  </button>
+        <div className="fixed inset-0 z-[2000] bg-black/95 backdrop-blur-xl flex items-center justify-center animate-fade-in">
+          <button onClick={() => setLightboxIndex(null)} className="absolute top-6 right-6 text-white/50 hover:text-white transition-colors bg-white/10 p-2 rounded-full backdrop-blur-sm z-50">
+            <X size={24} />
+          </button>
 
-                  <button 
-                      onClick={(e) => { e.stopPropagation(); setLightboxIndex((lightboxIndex + 1) % viewingItem.gallery.length); }}
-                      className="absolute right-4 top-1/2 -translate-y-1/2 text-white/50 hover:text-white bg-white/10 p-4 rounded-full backdrop-blur-sm hover:scale-110 transition-all"
-                  >
-                      <ChevronRight size={32}/>
-                  </button>
-              </div>
+          <div className="relative w-full h-full flex items-center justify-center p-4">
+            <img
+              src={normalizeGallery(viewingItem.gallery)[lightboxIndex].url}
+              className="max-h-[90vh] max-w-[90vw] object-contain shadow-2xl rounded-sm transition-transform duration-300"
+              alt=""
+            />
+
+            <button
+              onClick={(e) => { e.stopPropagation(); setLightboxIndex((lightboxIndex - 1 + viewingItem.gallery.length) % viewingItem.gallery.length); }}
+              className="absolute left-4 top-1/2 -translate-y-1/2 text-white/50 hover:text-white bg-white/10 p-4 rounded-full backdrop-blur-sm hover:scale-110 transition-all"
+            >
+              <ChevronLeft size={32} />
+            </button>
+
+            <button
+              onClick={(e) => { e.stopPropagation(); setLightboxIndex((lightboxIndex + 1) % viewingItem.gallery.length); }}
+              className="absolute right-4 top-1/2 -translate-y-1/2 text-white/50 hover:text-white bg-white/10 p-4 rounded-full backdrop-blur-sm hover:scale-110 transition-all"
+            >
+              <ChevronRight size={32} />
+            </button>
           </div>
+        </div>
       )}
 
       {showLogin && (
         <div className="fixed inset-0 z-[200] bg-[#593428]/98 flex items-center justify-center p-6 backdrop-blur-md animate-fade-in">
           <div className="bg-white p-12 max-w-md w-full rounded shadow-2xl relative text-center border border-[#593428]/10 text-black">
-            <button onClick={() => setShowLogin(false)} className="absolute top-6 right-6 opacity-40 hover:opacity-100"><X size={24}/></button>
-            <h3 className="text-4xl font-serif mb-4 text-[#593428]">VN Admin</h3>
+            <button onClick={() => setShowLogin(false)} className="absolute top-6 right-6 opacity-40 hover:opacity-100"><X size={24} /></button>
+            <h3 className="text-4xl font-serif mb-4 text-[#593428]">{loginType === 'admin' ? 'VN Admin' : 'Área do Cliente'}</h3>
+            <p className="text-[10px] uppercase font-bold tracking-widest opacity-50 mb-6">{loginType === 'admin' ? 'Acesso Administrativo' : 'Acesse seu material exclusivo'}</p>
             <form onSubmit={handleLogin} className="space-y-6">
               <input type="email" placeholder="Email" value={loginEmail} onChange={e => setLoginEmail(e.target.value)} className="w-full border-b border-[#593428]/20 p-4 outline-none text-sm" required />
               <input type="password" placeholder="Senha" value={loginPass} onChange={e => setLoginPass(e.target.value)} className="w-full border-b border-[#593428]/20 p-4 outline-none text-sm" required />
@@ -1042,22 +1076,22 @@ export default function App() {
       {showAddItemModal && (
         <div className="fixed inset-0 z-[1000] bg-black/90 flex items-center justify-center p-4">
           <div className="bg-[#FAF9F6] p-12 max-w-xl w-full rounded-sm text-[#593428] max-h-[90vh] overflow-y-auto relative">
-            <button onClick={() => setShowAddItemModal(false)} className="absolute top-6 right-6 opacity-50"><X size={24}/></button>
+            <button onClick={() => setShowAddItemModal(false)} className="absolute top-6 right-6 opacity-50"><X size={24} /></button>
             <h3 className="text-4xl font-serif mb-10 text-center">Novo Álbum</h3>
             <form onSubmit={handleAddItem} className="space-y-6">
-              <input value={newItem.title} onChange={e => setNewItem({...newItem, title: e.target.value})} placeholder="Título" className="w-full border-b border-[#593428]/20 p-4 bg-transparent outline-none text-black" required />
+              <input value={newItem.title} onChange={e => setNewItem({ ...newItem, title: e.target.value })} placeholder="Título" className="w-full border-b border-[#593428]/20 p-4 bg-transparent outline-none text-black" required />
               <div className="grid grid-cols-2 gap-6">
-                 <input value={newItem.location} onChange={e => setNewItem({...newItem, location: e.target.value})} placeholder="Local" className="w-full border-b border-[#593428]/20 p-4 bg-transparent outline-none text-black" required />
-                 <input value={newItem.category} onChange={e => setNewItem({...newItem, category: e.target.value})} placeholder="Categoria" className="w-full border-b border-[#593428]/20 p-4 bg-transparent outline-none text-black" required />
+                <input value={newItem.location} onChange={e => setNewItem({ ...newItem, location: e.target.value })} placeholder="Local" className="w-full border-b border-[#593428]/20 p-4 bg-transparent outline-none text-black" required />
+                <input value={newItem.category} onChange={e => setNewItem({ ...newItem, category: e.target.value })} placeholder="Categoria" className="w-full border-b border-[#593428]/20 p-4 bg-transparent outline-none text-black" required />
               </div>
-              <div onClick={() => triggerFileUpload(url => setNewItem({...newItem, image: url}))} className="border-2 border-dashed border-[#593428]/10 p-12 text-center cursor-pointer hover:bg-white/50">
-                 {newItem.image ? (
-                   <div className="relative w-full h-48">
-                     <img src={newItem.image} className="w-full h-full object-contain shadow-2xl" alt="" />
-                   </div>
-                 ) : (
-                   <div className="text-gray-400 flex flex-col items-center justify-center h-48"><ImageIcon size={40} className="mb-4"/><span>Capa Principal</span></div>
-                 )}
+              <div onClick={() => triggerFileUpload(url => setNewItem({ ...newItem, image: url }))} className="border-2 border-dashed border-[#593428]/10 p-12 text-center cursor-pointer hover:bg-white/50">
+                {newItem.image ? (
+                  <div className="relative w-full h-48">
+                    <img src={newItem.image} className="w-full h-full object-contain shadow-2xl" alt="" />
+                  </div>
+                ) : (
+                  <div className="text-gray-400 flex flex-col items-center justify-center h-48"><ImageIcon size={40} className="mb-4" /><span>Capa Principal</span></div>
+                )}
               </div>
               <button className="w-full bg-[#593428] text-[#EADDCE] py-5 uppercase font-bold tracking-[0.3em] hover:opacity-95 shadow-xl">Publicar</button>
             </form>
@@ -1068,21 +1102,21 @@ export default function App() {
       {showHeroManager && (
         <div className="fixed inset-0 z-[150] bg-black/95 flex items-center justify-center p-4">
           <div className="bg-white p-12 max-w-4xl w-full rounded-sm relative max-h-[90vh] overflow-y-auto text-black">
-            <button onClick={() => setShowHeroManager(false)} className="absolute top-6 right-6 hover:text-red-500"><X size={24}/></button>
+            <button onClick={() => setShowHeroManager(false)} className="absolute top-6 right-6 hover:text-red-500"><X size={24} /></button>
             <h3 className="text-4xl font-serif mb-10 text-[#593428]">Capa</h3>
             <div className="flex gap-4 mb-10">
-               <button onClick={() => handleContentChange('heroBackgroundType', 'image')} className={`px-8 py-3 text-[10px] font-bold uppercase tracking-widest border ${content.heroBackgroundType === 'image' ? 'bg-[#593428] text-[#EADDCE]' : 'text-gray-400'}`}>Imagens</button>
-               <button onClick={() => handleContentChange('heroBackgroundType', 'video')} className={`px-8 py-3 text-[10px] font-bold uppercase tracking-widest border ${content.heroBackgroundType === 'video' ? 'bg-[#593428] text-[#EADDCE]' : 'text-gray-400'}`}>Vídeo</button>
+              <button onClick={() => handleContentChange('heroBackgroundType', 'image')} className={`px-8 py-3 text-[10px] font-bold uppercase tracking-widest border ${content.heroBackgroundType === 'image' ? 'bg-[#593428] text-[#EADDCE]' : 'text-gray-400'}`}>Imagens</button>
+              <button onClick={() => handleContentChange('heroBackgroundType', 'video')} className={`px-8 py-3 text-[10px] font-bold uppercase tracking-widest border ${content.heroBackgroundType === 'video' ? 'bg-[#593428] text-[#EADDCE]' : 'text-gray-400'}`}>Vídeo</button>
             </div>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
               {(content.heroBackgrounds || []).map((bg, idx) => (
                 <div key={idx} className="relative group aspect-video shadow-md overflow-hidden bg-gray-50 rounded">
-                   {content.heroBackgroundType === 'video' ? <div className="bg-black w-full h-full flex items-center justify-center text-white"><Play size={20}/></div> : <ImageWithLoader src={bg} alt="" className="h-full w-full" />}
-                   <button onClick={() => { const b = [...content.heroBackgrounds]; b.splice(idx,1); handleContentChange('heroBackgrounds', b); }} className="absolute top-2 right-2 bg-red-600 text-white p-2 rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-opacity hover:scale-110"><Trash2 size={12}/></button>
+                  {content.heroBackgroundType === 'video' ? <div className="bg-black w-full h-full flex items-center justify-center text-white"><Play size={20} /></div> : <ImageWithLoader src={bg} alt="" className="h-full w-full" />}
+                  <button onClick={() => { const b = [...content.heroBackgrounds]; b.splice(idx, 1); handleContentChange('heroBackgrounds', b); }} className="absolute top-2 right-2 bg-red-600 text-white p-2 rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-opacity hover:scale-110"><Trash2 size={12} /></button>
                 </div>
               ))}
               <button onClick={() => triggerFileUpload(url => handleContentChange('heroBackgrounds', [...(content.heroBackgrounds || []), ...(Array.isArray(url) ? url : [url])]), true)} className="border-2 border-dashed border-gray-200 flex flex-col items-center justify-center aspect-video text-gray-400 hover:text-[#593428] hover:border-[#593428] transition-all bg-gray-50 rounded">
-                <Plus size={30}/><span className="text-[9px] uppercase font-bold mt-3">Upload</span>
+                <Plus size={30} /><span className="text-[9px] uppercase font-bold mt-3">Upload</span>
               </button>
             </div>
           </div>
@@ -1094,8 +1128,8 @@ export default function App() {
           <div className="bg-white p-10 max-w-md w-full rounded shadow-2xl relative text-center text-black animate-fade-in">
             <h3 className="text-2xl font-serif mb-6 text-[#593428]">Configurar {editingLink.label}</h3>
             <div className="text-left mb-6">
-               <label className="text-[10px] uppercase tracking-widest text-gray-400 block mb-2 font-bold">URL Completa</label>
-               <input value={editingLink.url} onChange={e => setEditingLink({...editingLink, url: e.target.value})} className="w-full border-b border-gray-300 p-3 outline-none focus:border-[#593428] font-sans text-sm" placeholder="https://instagram.com/vn_pedroni" />
+              <label className="text-[10px] uppercase tracking-widest text-gray-400 block mb-2 font-bold">URL Completa</label>
+              <input value={editingLink.url} onChange={e => setEditingLink({ ...editingLink, url: e.target.value })} className="w-full border-b border-gray-300 p-3 outline-none focus:border-[#593428] font-sans text-sm" placeholder="https://instagram.com/vn_pedroni" />
             </div>
             <div className="flex gap-4">
               <button onClick={() => { handleContentChange(editingLink.id, editingLink.url); setEditingLink(null); }} className="flex-1 bg-[#593428] text-white py-4 uppercase font-bold text-[10px] tracking-widest hover:opacity-90 shadow-lg transition-opacity">Salvar Alteração</button>
@@ -1107,8 +1141,27 @@ export default function App() {
 
       {loading && !dataLoaded && (
         <div className="fixed inset-0 z-[500] bg-[#593428]/98 flex items-center justify-center text-[#EADDCE] flex-col animate-fade-in backdrop-blur-sm">
-          <Loader className="animate-spin mb-6" size={60}/><span className="uppercase tracking-[0.5em] font-bold text-xs animate-pulse">{loadingText}</span>
+          <Loader className="animate-spin mb-6" size={60} /><span className="uppercase tracking-[0.5em] font-bold text-xs animate-pulse">{loadingText}</span>
         </div>
+      )}
+
+      {/* COMPONENTES DA ÁREA DO CLIENTE */}
+      {showAdminClientManager && (
+        <AdminClientManager 
+          db={db} 
+          storage={storage} 
+          isDemoMode={isDemoMode}
+          onClose={() => setShowAdminClientManager(false)} 
+        />
+      )}
+
+      {appState === 'client-dashboard' && (
+        <ClientDashboard 
+          db={db} 
+          user={user} 
+          onLogOut={() => {signOut(auth); setAppState('home');}} 
+          onBackContent={() => setAppState('home')} 
+        />
       )}
     </div>
   );
