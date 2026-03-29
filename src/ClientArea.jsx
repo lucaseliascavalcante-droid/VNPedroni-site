@@ -40,26 +40,35 @@ export function AdminClientManager({ onClose, db, storage, isDemoMode }) {
       // 2. Upload Previews
       setMessage('Lendo arquivos e fazendo upload das prévias...');
       const uploadedUrls = [];
-      for (const file of previewFiles) {
-        if(file instanceof File) {
-          const storageRef = ref(storage, `uploads/${manualConfig.projectId}/clients/${clientUid}/${Date.now()}_${file.name}`);
-          await uploadBytes(storageRef, file);
-          const dl = await getDownloadURL(storageRef);
-          uploadedUrls.push(dl);
-        } else {
-          uploadedUrls.push(file); 
+      try {
+        for (const file of previewFiles) {
+          if(file instanceof File) {
+            const safeName = file.name.replace(/[^a-zA-Z0-9.\-_]/g, '');
+            const storageRef = ref(storage, `uploads/${manualConfig.projectId}/${Date.now()}_client_${safeName}`);
+            await uploadBytes(storageRef, file);
+            const dl = await getDownloadURL(storageRef);
+            uploadedUrls.push(dl);
+          } else {
+            uploadedUrls.push(file); 
+          }
         }
+      } catch (storageErr) {
+        throw new Error("Storage: " + storageErr.message);
       }
 
       // 3. Save to Firestore
       setMessage('Salvando dados do cliente...');
-      await setDoc(doc(db, 'artifacts', manualConfig.projectId, 'public', 'data', 'clients', clientUid), {
-        email: email,
-        title: title || "Sua Entrega",
-        links: links.filter(l => l.url.trim() !== ''),
-        previewPhotos: uploadedUrls,
-        createdAt: new Date().toISOString()
-      });
+      try {
+        await setDoc(doc(db, 'artifacts', manualConfig.projectId, 'public', 'data', 'clients', clientUid), {
+          email: email,
+          title: title || "Sua Entrega",
+          links: links.filter(l => l.url.trim() !== ''),
+          previewPhotos: uploadedUrls,
+          createdAt: new Date().toISOString()
+        });
+      } catch (dbErr) {
+        throw new Error("Firestore: " + dbErr.message);
+      }
 
       // Cleanup
       if (secondaryApp.delete) await secondaryApp.delete();
