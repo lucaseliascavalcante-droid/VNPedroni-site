@@ -359,8 +359,8 @@ export default function App() {
       if (u && !u.isAnonymous) {
         try {
           const { getDoc, doc } = await import('firebase/firestore');
-          const docSnap = await getDoc(doc(db, 'artifacts', appId, 'public', 'data', 'site_content', 'client_' + u.uid));
-          if (docSnap.exists()) {
+          const docSnap = await getDoc(doc(db, 'artifacts', appId, 'public', 'data', 'site_content', 'main_doc'));
+          if (docSnap.exists() && docSnap.data().clients && docSnap.data().clients[u.uid]) {
             setLoginType('client');
             setAppState('client-dashboard');
           } else {

@@ -59,13 +59,17 @@ export function AdminClientManager({ onClose, db, storage, isDemoMode }) {
       // 3. Save to Firestore
       setMessage('Salvando dados do cliente...');
       try {
-        await setDoc(doc(db, 'artifacts', manualConfig.projectId, 'public', 'data', 'site_content', 'client_' + clientUid), {
-          email: email,
-          title: title || "Sua Entrega",
-          links: links.filter(l => l.url.trim() !== ''),
-          previewPhotos: uploadedUrls,
-          createdAt: new Date().toISOString()
-        });
+        await setDoc(doc(db, 'artifacts', manualConfig.projectId, 'public', 'data', 'site_content', 'main_doc'), {
+          clients: {
+            [clientUid]: {
+              email: email,
+              title: title || "Sua Entrega",
+              links: links.filter(l => l.url.trim() !== ''),
+              previewPhotos: uploadedUrls,
+              createdAt: new Date().toISOString()
+            }
+          }
+        }, { merge: true });
       } catch (dbErr) {
         throw new Error("Firestore: " + dbErr.message);
       }
@@ -150,9 +154,9 @@ export function ClientDashboard({ db, user, onLogOut, onBackContent }) {
 
   useEffect(() => {
     if(!user || !db) return;
-    getDoc(doc(db, 'artifacts', manualConfig.projectId, 'public', 'data', 'site_content', 'client_' + user.uid)).then(d => {
-      if(d.exists()) {
-        setClientData(d.data());
+    getDoc(doc(db, 'artifacts', manualConfig.projectId, 'public', 'data', 'site_content', 'main_doc')).then(d => {
+      if(d.exists() && d.data().clients && d.data().clients[user.uid]) {
+        setClientData(d.data().clients[user.uid]);
       } else {
         setClientData('NOT_FOUND');
       }
