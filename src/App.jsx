@@ -5,7 +5,8 @@ import {
   Facebook, Twitter, Linkedin, ChevronDown, Link as LinkIcon, User,
   ChevronLeft, ChevronRight, LayoutGrid, Settings, Film, CheckCircle,
   AlertCircle, Cloud, WifiOff, Database, RefreshCw, AlertTriangle,
-  HardDrive, ImageOff, Maximize2, XCircle, GripVertical
+  HardDrive, ImageOff, Maximize2, XCircle, GripVertical, MapPin, Lightbulb,
+  Users
 } from 'lucide-react';
 
 // --- FIREBASE IMPORTS ---
@@ -13,7 +14,7 @@ import { initializeApp, getApps, getApp } from "firebase/app";
 import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged, signInAnonymously } from "firebase/auth";
 import { getFirestore, doc, setDoc, onSnapshot, updateDoc } from "firebase/firestore";
 import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { AdminClientManager, ClientDashboard } from './ClientArea';
+import { AdminClientManager, ClientDashboard, AdminClientCRM } from './ClientArea';
 
 // --- FIREBASE CONFIGURATION ---
 const manualConfig = {
@@ -275,6 +276,7 @@ export default function App() {
   const [showLogin, setShowLogin] = useState(false);
   const [loginType, setLoginType] = useState('admin');
   const [showAdminClientManager, setShowAdminClientManager] = useState(false);
+  const [showAdminCRM, setShowAdminCRM] = useState(false);
   const [isRegistering, setIsRegistering] = useState(false);
   const [loginEmail, setLoginEmail] = useState('');
   const [loginPass, setLoginPass] = useState('');
@@ -318,7 +320,10 @@ export default function App() {
     contactLink: "https://wa.me/5511999999999",
     footerCopyright: "© 2024 VN Pedroni Fotografia.",
     socialInstagram: "https://instagram.com",
-    socialPinterest: "https://pinterest.com"
+    socialPinterest: "https://pinterest.com",
+    tipsTitle: "Dicas para seu Pré-Wedding",
+    tipsSubtitle: "Lugares incríveis para eternizar o amor",
+    tips: []
   };
 
   const [content, setContent] = useState(defaultContent);
@@ -358,15 +363,11 @@ export default function App() {
       setUser(u);
       if (u && !u.isAnonymous) {
         try {
-          const { getDoc, doc } = await import('firebase/firestore');
-          const docSnap = await getDoc(doc(db, 'artifacts', appId, 'public', 'data', 'site_content', 'main_doc'));
-          if (docSnap.exists() && docSnap.data().clients && docSnap.data().clients[u.uid]) {
-            setLoginType('client');
-            setAppState('client-dashboard');
-          } else {
-            setLoginType('admin');
-            setIsEditing(true);
-          }
+          const { getDownloadURL, ref: sRef } = await import('firebase/storage');
+          const dataRef = sRef(storage, `uploads/${appId}/clients/${u.uid}/data.json`);
+          await getDownloadURL(dataRef);
+          setLoginType('client');
+          setAppState('client-dashboard');
         } catch(e) {
           setLoginType('admin');
           setIsEditing(true);
@@ -713,7 +714,7 @@ export default function App() {
             <button onClick={() => saveAll()} className="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-500 transition-colors flex items-center gap-2">
               <Save size={12} /> SALVAR AGORA
             </button>
-            <button onClick={() => setShowAdminClientManager(true)} className="border border-white/20 px-3 py-1 rounded bg-yellow-600/20 text-yellow-500 hover:bg-yellow-500 hover:text-black transition-colors">CLIENTES</button>
+            <button onClick={() => setShowAdminCRM(true)} className="border border-white/20 px-3 py-1 rounded bg-yellow-600/20 text-yellow-500 hover:bg-yellow-500 hover:text-black transition-colors flex items-center gap-1"><Users size={12} /> CRM</button>
             <button onClick={() => setShowHeroManager(true)} className="border border-white/20 px-3 py-1 rounded hover:bg-white hover:text-black transition-colors">CAPA</button>
             <button onClick={() => setIsEditing(!isEditing)} className={`px-4 py-1 rounded transition-colors ${isEditing ? 'bg-yellow-500 text-black' : 'border border-white/20 hover:bg-white hover:text-black'}`}>
               {isEditing ? 'CONCLUIR' : 'EDITAR'}
@@ -748,8 +749,8 @@ export default function App() {
         <div className="fixed inset-0 bg-[#593428] z-[200] flex flex-col items-center justify-center animate-fade-in text-[#EADDCE]">
           <button onClick={() => setMenuOpen(false)} className="absolute top-10 right-10 hover:text-white transition-colors"><X size={40} /></button>
           <div className="flex flex-col items-center gap-8">
-            {['Início', 'Portfólio', 'Equipa', 'Contato'].map((label, idx) => (
-              <button key={idx} onClick={() => scrollToSection(label === 'Início' ? 'home' : (label === 'Equipa' ? 'team' : (label === 'Contato' ? 'contact' : 'portfolio')))} className="text-4xl md:text-6xl font-serif italic hover:text-white transition-all transform hover:scale-105">
+            {['Início', 'Portfólio', 'Dicas', 'Equipa', 'Contato'].map((label, idx) => (
+              <button key={idx} onClick={() => scrollToSection(label === 'Início' ? 'home' : (label === 'Equipa' ? 'team' : (label === 'Contato' ? 'contact' : (label === 'Dicas' ? 'tips' : 'portfolio'))))} className="text-4xl md:text-6xl font-serif italic hover:text-white transition-all transform hover:scale-105">
                 {label}
               </button>
             ))}
@@ -898,6 +899,171 @@ export default function App() {
           ))}
         </div>
       </section>
+
+      {/* DICAS PRÉ-WEDDING */}
+      {(content.tips?.length > 0 || isEditing) && (
+        <section id="tips" className="py-32 bg-white reveal">
+          <div className="max-w-7xl mx-auto px-6">
+            <div className="text-center mb-20">
+              <span className="text-[10px] font-bold uppercase tracking-widest opacity-50 border-b border-[#593428] pb-1 inline-block mb-4">
+                <Lightbulb size={12} className="inline mr-1 -mt-0.5" /> Inspiração
+              </span>
+              <EditableText id="tipsTitle" tag="h2" className="text-4xl md:text-6xl font-serif mb-4" value={content.tipsTitle} isEditing={isEditing} onChange={handleContentChange} />
+              <EditableText id="tipsSubtitle" tag="p" className="text-lg text-gray-400 font-light" value={content.tipsSubtitle} isEditing={isEditing} onChange={handleContentChange} />
+            </div>
+
+            {isEditing && (
+              <div className="text-center mb-12">
+                <button
+                  onClick={() => {
+                    const tips = [...(content.tips || [])];
+                    tips.push({
+                      id: Date.now().toString(),
+                      title: 'Novo Local',
+                      location: 'Cidade, Estado',
+                      description: 'Descreva este lugar incrível para pré-wedding...',
+                      photos: []
+                    });
+                    handleContentChange('tips', tips);
+                  }}
+                  className="bg-[#593428] text-[#EADDCE] px-8 py-4 text-[10px] font-bold uppercase tracking-widest hover:brightness-110 shadow-lg inline-flex items-center gap-2 rounded-sm"
+                >
+                  <Plus size={16} /> Adicionar Dica
+                </button>
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+              {(content.tips || []).map((tip, tipIdx) => (
+                <div key={tip.id || tipIdx} className="group reveal bg-[#FAF9F6] rounded-sm shadow-sm hover:shadow-xl transition-all duration-500 overflow-hidden" style={{ transitionDelay: `${(tipIdx % 3) * 150}ms` }}>
+                  {/* Tip Cover Photo */}
+                  <div className="relative aspect-[4/3] overflow-hidden bg-[#e5e5e5]">
+                    {tip.photos && tip.photos.length > 0 ? (
+                      <ImageWithLoader src={tip.photos[0]} alt={tip.title} className="h-full w-full" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-[#593428]/20">
+                        <MapPin size={40} />
+                      </div>
+                    )}
+                    <div className="absolute inset-0 bg-gradient-to-t from-[#593428]/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+
+                    {/* Photo count badge */}
+                    {tip.photos && tip.photos.length > 1 && (
+                      <div className="absolute top-3 right-3 bg-black/50 text-white px-3 py-1 rounded-full text-[10px] font-bold tracking-widest backdrop-blur-sm">
+                        <ImageIcon size={10} className="inline mr-1" />{tip.photos.length}
+                      </div>
+                    )}
+
+                    {isEditing && (
+                      <div className="absolute top-3 left-3 flex gap-2">
+                        <button onClick={() => {
+                          triggerFileUpload(urls => {
+                            const tips = [...content.tips];
+                            const urlArr = Array.isArray(urls) ? urls : [urls];
+                            tips[tipIdx] = { ...tips[tipIdx], photos: [...(tips[tipIdx].photos || []), ...urlArr] };
+                            handleContentChange('tips', tips);
+                          }, true);
+                        }} className="bg-white text-[#593428] p-2 rounded-full shadow-lg hover:scale-110 transition-transform">
+                          <Upload size={14} />
+                        </button>
+                        <button onClick={() => {
+                          if (confirm("Remover esta dica?")) {
+                            const tips = content.tips.filter((_, i) => i !== tipIdx);
+                            handleContentChange('tips', tips);
+                          }
+                        }} className="bg-red-600 text-white p-2 rounded-full shadow-lg hover:scale-110 transition-transform">
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Tip Content */}
+                  <div className="p-6">
+                    <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest opacity-50 mb-3">
+                      <MapPin size={12} />
+                      {isEditing ? (
+                        <input 
+                          value={tip.location} 
+                          onChange={e => {
+                            const tips = [...content.tips];
+                            tips[tipIdx] = { ...tips[tipIdx], location: e.target.value };
+                            handleContentChange('tips', tips);
+                          }}
+                          className="bg-yellow-100/30 border border-yellow-500/20 px-2 py-0.5 outline-none rounded text-[10px] w-full"
+                          placeholder="Cidade, Estado"
+                        />
+                      ) : (
+                        <span>{tip.location}</span>
+                      )}
+                    </div>
+
+                    {isEditing ? (
+                      <input 
+                        value={tip.title} 
+                        onChange={e => {
+                          const tips = [...content.tips];
+                          tips[tipIdx] = { ...tips[tipIdx], title: e.target.value };
+                          handleContentChange('tips', tips);
+                        }}
+                        className="text-2xl font-serif mb-3 bg-yellow-100/30 border border-yellow-500/20 p-1 outline-none rounded w-full"
+                        placeholder="Nome do Local"
+                      />
+                    ) : (
+                      <h3 className="text-2xl font-serif mb-3">{tip.title}</h3>
+                    )}
+
+                    {isEditing ? (
+                      <textarea 
+                        value={tip.description} 
+                        onChange={e => {
+                          const tips = [...content.tips];
+                          tips[tipIdx] = { ...tips[tipIdx], description: e.target.value };
+                          handleContentChange('tips', tips);
+                        }}
+                        className="text-sm text-gray-500 font-light leading-relaxed bg-yellow-100/30 border border-yellow-500/20 p-1 outline-none rounded w-full resize-none h-20"
+                        placeholder="Descrição do local..."
+                      />
+                    ) : (
+                      <p className="text-sm text-gray-500 font-light leading-relaxed">{tip.description}</p>
+                    )}
+
+                    {/* Tip Photo Gallery Mini */}
+                    {tip.photos && tip.photos.length > 1 && (
+                      <div className="mt-4 flex gap-1 overflow-x-auto pb-2 -mx-1 px-1">
+                        {tip.photos.slice(1, 5).map((photo, pIdx) => (
+                          <div key={pIdx} className="relative flex-shrink-0 w-16 h-16 rounded overflow-hidden bg-[#e5e5e5] group/thumb">
+                            <img src={photo} alt="" className="w-full h-full object-cover" loading="lazy" />
+                            {isEditing && (
+                              <button 
+                                onClick={() => {
+                                  const tips = [...content.tips];
+                                  const photos = [...tips[tipIdx].photos];
+                                  photos.splice(pIdx + 1, 1);
+                                  tips[tipIdx] = { ...tips[tipIdx], photos };
+                                  handleContentChange('tips', tips);
+                                }}
+                                className="absolute inset-0 bg-red-600/70 flex items-center justify-center opacity-0 group-hover/thumb:opacity-100 transition-opacity"
+                              >
+                                <Trash2 size={10} className="text-white" />
+                              </button>
+                            )}
+                          </div>
+                        ))}
+                        {tip.photos.length > 5 && (
+                          <div className="flex-shrink-0 w-16 h-16 rounded bg-[#593428]/10 flex items-center justify-center text-[10px] font-bold text-[#593428]/50">
+                            +{tip.photos.length - 5}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* FOOTER */}
       <footer id="contact" className="bg-[#593428] text-[#EADDCE] py-32 px-6 text-center">
@@ -1151,13 +1317,22 @@ export default function App() {
           db={db} 
           storage={storage} 
           isDemoMode={isDemoMode}
-          onClose={() => setShowAdminClientManager(false)} 
+          onClose={() => { setShowAdminClientManager(false); }} 
+        />
+      )}
+
+      {showAdminCRM && (
+        <AdminClientCRM 
+          storage={storage} 
+          isDemoMode={isDemoMode}
+          onClose={() => setShowAdminCRM(false)}
+          onCreateNew={() => { setShowAdminCRM(false); setShowAdminClientManager(true); }}
         />
       )}
 
       {appState === 'client-dashboard' && (
         <ClientDashboard 
-          db={db} 
+          storage={storage} 
           user={user} 
           onLogOut={() => {signOut(auth); setAppState('home');}} 
           onBackContent={() => setAppState('home')} 
