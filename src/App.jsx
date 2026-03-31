@@ -12,7 +12,7 @@ import {
 // --- FIREBASE IMPORTS ---
 import { initializeApp, getApps, getApp } from "firebase/app";
 import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged, signInAnonymously } from "firebase/auth";
-import { getFirestore, doc, setDoc, onSnapshot, updateDoc } from "firebase/firestore";
+import { getFirestore, doc, setDoc, onSnapshot, updateDoc, getDoc } from "firebase/firestore";
 import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { AdminClientManager, ClientDashboard, AdminClientCRM } from './ClientArea';
 
@@ -363,38 +363,25 @@ export default function App() {
       setUser(u);
       if (u && !u.isAnonymous) {
         try {
-          const { getDownloadURL, ref: sRef } = await import('firebase/storage');
-
-          // Check 1: Is this user listed as a client in the registry?
-          const regRef = sRef(storage, `uploads/${appId}/clients/registry.json`);
-          let isRegisteredClient = false;
-          try {
-            const regUrl = await getDownloadURL(regRef);
-            const regResp = await fetch(regUrl);
-            const registry = await regResp.json();
-            if (Array.isArray(registry)) {
-              isRegisteredClient = registry.some(c => c.uid === u.uid);
-            }
-          } catch(e) { /* registry doesn't exist yet */ }
-
-          if (isRegisteredClient) {
-            // User is a registered client
+          // Verificar se é um cliente registrado no Firestore
+          const clientSnap = await getDoc(doc(db, 'clients', u.uid));
+          if (clientSnap.exists()) {
             setLoginType('client');
             setAppState('client-dashboard');
           } else {
-            // Check 2: Is this user an admin? (has admin email)
+            // Não é cliente → verificar se é admin
             const ADMIN_EMAILS = ["lucaselias.cavalcante@gmail.com"];
             if (ADMIN_EMAILS.includes(u.email)) {
               setLoginType('admin');
               setIsEditing(true);
             } else {
-              // User exists in Auth but is not a registered client or admin
+              // Usuário existe no Auth mas sem registro → tratar como cliente
               setLoginType('client');
               setAppState('client-dashboard');
             }
           }
         } catch(e) {
-          // If all checks fail, treat as client (safe default)
+          // Em caso de erro, fallback seguro → cliente
           setLoginType('client');
           setAppState('client-dashboard');
         }
@@ -1341,7 +1328,6 @@ export default function App() {
       {showAdminClientManager && (
         <AdminClientManager 
           db={db} 
-          storage={storage} 
           isDemoMode={isDemoMode}
           onSuccess={() => setShowAdminCRM(true)}
           onClose={() => { setShowAdminClientManager(false); }} 
@@ -1350,7 +1336,7 @@ export default function App() {
 
       {showAdminCRM && (
         <AdminClientCRM 
-          storage={storage} 
+          db={db}
           isDemoMode={isDemoMode}
           onClose={() => setShowAdminCRM(false)}
           onCreateNew={() => { setShowAdminCRM(false); setShowAdminClientManager(true); }}
@@ -1359,7 +1345,7 @@ export default function App() {
 
       {appState === 'client-dashboard' && (
         <ClientDashboard 
-          storage={storage} 
+          db={db}
           user={user} 
           onLogOut={() => {signOut(auth); setAppState('home');}} 
           onBackContent={() => setAppState('home')} 
