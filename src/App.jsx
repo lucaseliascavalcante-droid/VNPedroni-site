@@ -1337,6 +1337,7 @@ export default function App() {
       {showAdminCRM && (
         <AdminClientCRM 
           db={db}
+          storage={storage}
           isDemoMode={isDemoMode}
           onClose={() => setShowAdminCRM(false)}
           onCreateNew={() => { setShowAdminCRM(false); setShowAdminClientManager(true); }}

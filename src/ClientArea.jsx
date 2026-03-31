@@ -5,11 +5,12 @@ import {
   collection, doc, setDoc, onSnapshot, updateDoc, deleteDoc,
   getDoc, serverTimestamp, getDocs
 } from "firebase/firestore";
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import {
   X, Loader, Folder, ArrowLeft, Image as ImageIcon, LogOut,
   Calendar, Users, Trash2, ChevronDown, ChevronUp, Plus, Search,
   Edit2, Save, Link as LinkIcon, CheckCircle, Unlink, ExternalLink,
-  Eye, EyeOff, Clock, Package
+  Eye, EyeOff, Clock, Package, Upload
 } from 'lucide-react';
 
 const manualConfig = {
@@ -327,7 +328,7 @@ export function ClientDashboard({ db, user, onLogOut, onBackContent }) {
 // =============================================
 // CRM DE CLIENTES (TEMPO REAL)
 // =============================================
-export function AdminClientCRM({ onClose, db, isDemoMode, onCreateNew }) {
+export function AdminClientCRM({ onClose, db, storage, isDemoMode, onCreateNew }) {
   const [clients, setClients] = useState([]);
   const [loading, setLoading] = useState(true);
   const [expandedClient, setExpandedClient] = useState(null);
@@ -341,6 +342,41 @@ export function AdminClientCRM({ onClose, db, isDemoMode, onCreateNew }) {
   const [editData, setEditData] = useState(null);
   const [linkArtifactTarget, setLinkArtifactTarget] = useState(null);
   const [artifactIdInput, setArtifactIdInput] = useState('');
+  const [uploadingPhotos, setUploadingPhotos] = useState(false);
+
+  // Upload de fotos de prévia para o Storage
+  const handlePhotoUpload = async (files, clientId) => {
+    if (!files.length || !storage) return;
+    setUploadingPhotos(true);
+    try {
+      const urls = [];
+      for (const file of files) {
+        const safeName = file.name.replace(/[^a-zA-Z0-9.\-_]/g, '');
+        const storageRef = ref(storage, `clients/${clientId}/previews/${Date.now()}_${safeName}`);
+        await uploadBytes(storageRef, file);
+        const dl = await getDownloadURL(storageRef);
+        urls.push(dl);
+      }
+      // Adicionar URLs ao editData se estiver editando
+      if (editData) {
+        setEditData(prev => ({
+          ...prev,
+          previewPhotos: [...(prev.previewPhotos || []), ...urls]
+        }));
+      } else {
+        // Salvar direto no Firestore
+        const snap = await getDoc(doc(db, 'clients', clientId));
+        if (snap.exists()) {
+          const current = snap.data().previewPhotos || [];
+          await updateDoc(doc(db, 'clients', clientId), { previewPhotos: [...current, ...urls] });
+        }
+      }
+    } catch (err) {
+      alert("Erro no upload: " + err.message);
+    } finally {
+      setUploadingPhotos(false);
+    }
+  };
 
   // Ouvir clients em tempo real
   useEffect(() => {
@@ -595,18 +631,25 @@ export function AdminClientCRM({ onClose, db, isDemoMode, onCreateNew }) {
                               ))}
                             </div>
                           )}
-                          {/* Adicionar URL de prévia */}
-                          {editData && (
-                            <div className="flex gap-2">
-                              <input type="url" placeholder="Cole a URL da imagem" className="flex-1 border border-[#593428]/20 bg-white px-3 py-2 rounded-lg outline-none text-xs"
-                                onKeyDown={e => {
-                                  if (e.key === 'Enter' && e.target.value.trim()) {
-                                    setEditData({ ...editData, previewPhotos: [...(editData.previewPhotos || []), e.target.value.trim()] });
-                                    e.target.value = '';
-                                  }
-                                }} />
-                              <span className="text-[9px] opacity-40 self-center">Enter</span>
-                            </div>
+                          {/* Adicionar foto por upload */}
+                          {editData ? (
+                            <label className="flex items-center gap-2 cursor-pointer border border-dashed border-[#593428]/20 px-3 py-2 rounded-lg hover:bg-[#593428]/5 transition-colors">
+                              {uploadingPhotos ? (
+                                <Loader className="animate-spin" size={14} />
+                              ) : (
+                                <Upload size={14} className="opacity-50" />
+                              )}
+                              <span className="text-[10px] uppercase tracking-widest font-bold opacity-60">
+                                {uploadingPhotos ? 'Enviando...' : 'Enviar Fotos'}
+                              </span>
+                              <input type="file" multiple accept="image/*" className="hidden"
+                                onChange={e => handlePhotoUpload(Array.from(e.target.files), client.id)}
+                                disabled={uploadingPhotos} />
+                            </label>
+                          ) : (
+                            !(client.previewPhotos?.length > 0) && (
+                              <p className="text-xs opacity-40 italic">Nenhuma foto de prévia.</p>
+                            )
                           )}
                           {!(editData ? editData.previewPhotos : client.previewPhotos)?.length && !editData && (
                             <p className="text-xs opacity-40 italic">Nenhuma foto de prévia.</p>
