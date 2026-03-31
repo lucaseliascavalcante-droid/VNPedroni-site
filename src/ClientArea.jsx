@@ -36,80 +36,91 @@ export function AdminClientManager({ onClose, db, storage, isDemoMode, onSuccess
     if(isDemoMode) return alert("Modo demo não permite criar clientes reais.");
     setLoading(true);
     setMessage('Criando conta do cliente...');
+    let secondaryApp = null;
     try {
-      // 1. Create Secondary App
-      const secondaryApp = initializeApp(manualConfig, "SecondaryApp" + Date.now());
+      // 1. Create Secondary App for auth
+      const appName = "SecondaryClientApp_" + Date.now();
+      secondaryApp = initializeApp(manualConfig, appName);
       const secondaryAuth = getAuth(secondaryApp);
       
-      const userCredential = await createUserWithEmailAndPassword(secondaryAuth, email, password);
+      setMessage('Criando credenciais de acesso...');
+      let userCredential;
+      try {
+        userCredential = await createUserWithEmailAndPassword(secondaryAuth, email, password);
+      } catch(authErr) {
+        if (authErr.code === 'auth/email-already-in-use') {
+          throw new Error("Este e-mail já está cadastrado. Use outro e-mail ou delete o cliente existente no CRM.");
+        }
+        if (authErr.code === 'auth/operation-not-allowed') {
+          throw new Error("Login por e-mail/senha não está habilitado no Firebase Console. Ative em Authentication > Sign-in method.");
+        }
+        if (authErr.code === 'auth/weak-password') {
+          throw new Error("Senha muito fraca. Use pelo menos 6 caracteres.");
+        }
+        throw new Error("Auth: " + authErr.message);
+      }
       const clientUid = userCredential.user.uid;
+      console.log("Conta criada com UID:", clientUid);
       
       // 2. Upload Previews
-      setMessage('Lendo arquivos e fazendo upload das prévias...');
+      setMessage('Enviando prévias...');
       const uploadedUrls = [];
-      try {
-        for (const file of previewFiles) {
-          if(file instanceof File) {
-            const safeName = file.name.replace(/[^a-zA-Z0-9.\-_]/g, '');
-            const storageRef = ref(storage, `uploads/${manualConfig.projectId}/${Date.now()}_client_${safeName}`);
-            await uploadBytes(storageRef, file);
-            const dl = await getDownloadURL(storageRef);
-            uploadedUrls.push(dl);
-          } else {
-            uploadedUrls.push(file); 
-          }
+      for (const file of previewFiles) {
+        if(file instanceof File) {
+          const safeName = file.name.replace(/[^a-zA-Z0-9.\-_]/g, '');
+          const storageRef = ref(storage, `uploads/${manualConfig.projectId}/${Date.now()}_client_${safeName}`);
+          await uploadBytes(storageRef, file);
+          const dl = await getDownloadURL(storageRef);
+          uploadedUrls.push(dl);
+        } else {
+          uploadedUrls.push(file); 
         }
-      } catch (storageErr) {
-        throw new Error("Storage: " + storageErr.message);
       }
+      console.log("Upload de prévias concluído:", uploadedUrls.length);
 
-      // 3. Save to Cloud Storage (with password for CRM)
-      setMessage('Armazenando Metadados na Nuvem...');
+      // 3. Save client data.json to Storage
+      setMessage('Salvando dados do cliente...');
+      const clientData = {
+        email: email,
+        password: password,
+        title: title || "Sua Entrega",
+        deliveryDate: deliveryDate || null,
+        links: links.filter(l => l.url.trim() !== ''),
+        previewPhotos: uploadedUrls,
+        createdAt: new Date().toISOString()
+      };
+      const dataRef = ref(storage, `uploads/${manualConfig.projectId}/clients/${clientUid}/data.json`);
+      await uploadString(dataRef, JSON.stringify(clientData), 'raw', { contentType: 'application/json' });
+      console.log("data.json salvo no Storage");
+
+      // 4. Update registry.json for CRM
+      setMessage('Atualizando registro de clientes...');
+      let registry = [];
       try {
-        const clientData = {
-          email: email,
-          password: password,
-          title: title || "Sua Entrega",
-          deliveryDate: deliveryDate || null,
-          links: links.filter(l => l.url.trim() !== ''),
-          previewPhotos: uploadedUrls,
-          createdAt: new Date().toISOString()
-        };
-        const dataRef = ref(storage, `uploads/${manualConfig.projectId}/clients/${clientUid}/data.json`);
-        await uploadString(dataRef, JSON.stringify(clientData), 'raw', { contentType: 'application/json' });
-
-        // 4. Update registry for CRM
-        setMessage('Atualizando registro de clientes...');
-        let registry = [];
-        try {
-          const regRef = ref(storage, `uploads/${manualConfig.projectId}/clients/registry.json`);
-          const regUrl = await getDownloadURL(regRef);
-          const regResp = await fetch(regUrl);
-          registry = await regResp.json();
-          if (!Array.isArray(registry)) registry = [];
-        } catch(e) {
-          // Registry doesn't exist yet
-        }
-        // Remove any existing entry for this email (in case of re-creation)
-        registry = registry.filter(c => c.email !== email);
-        registry.push({
-          uid: clientUid,
-          email: email,
-          password: password,
-          role: 'client',
-          title: title || "Sua Entrega",
-          deliveryDate: deliveryDate || null,
-          createdAt: new Date().toISOString()
-        });
         const regRef = ref(storage, `uploads/${manualConfig.projectId}/clients/registry.json`);
-        await uploadString(regRef, JSON.stringify(registry), 'raw', { contentType: 'application/json' });
-
-      } catch (dbErr) {
-        throw new Error("Armazenamento Metadados: " + dbErr.message);
+        const regUrl = await getDownloadURL(regRef);
+        const regResp = await fetch(regUrl);
+        registry = await regResp.json();
+        if (!Array.isArray(registry)) registry = [];
+      } catch(e) {
+        console.log("registry.json não existe ainda, criando novo");
       }
+      registry = registry.filter(c => c.email !== email);
+      registry.push({
+        uid: clientUid,
+        email: email,
+        password: password,
+        role: 'client',
+        title: title || "Sua Entrega",
+        deliveryDate: deliveryDate || null,
+        createdAt: new Date().toISOString()
+      });
+      const regRef = ref(storage, `uploads/${manualConfig.projectId}/clients/registry.json`);
+      await uploadString(regRef, JSON.stringify(registry), 'raw', { contentType: 'application/json' });
+      console.log("registry.json atualizado com", registry.length, "clientes");
 
-      // Cleanup
-      try { await deleteApp(secondaryApp); } catch(e) {}
+      // Cleanup secondary app
+      try { await deleteApp(secondaryApp); secondaryApp = null; } catch(e) { console.log("Cleanup:", e); }
       
       setMessage('✅ Cliente criado com sucesso!');
       setTimeout(() => {
@@ -117,7 +128,8 @@ export function AdminClientManager({ onClose, db, storage, isDemoMode, onSuccess
         onClose();
       }, 2000);
     } catch(err) {
-      console.error(err);
+      console.error("Erro ao criar cliente:", err);
+      if (secondaryApp) { try { await deleteApp(secondaryApp); } catch(e) {} }
       setMessage('Erro: ' + err.message);
     } finally {
       setLoading(false);
