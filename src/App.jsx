@@ -364,13 +364,39 @@ export default function App() {
       if (u && !u.isAnonymous) {
         try {
           const { getDownloadURL, ref: sRef } = await import('firebase/storage');
-          const dataRef = sRef(storage, `uploads/${appId}/clients/${u.uid}/data.json`);
-          await getDownloadURL(dataRef);
+
+          // Check 1: Is this user listed as a client in the registry?
+          const regRef = sRef(storage, `uploads/${appId}/clients/registry.json`);
+          let isRegisteredClient = false;
+          try {
+            const regUrl = await getDownloadURL(regRef);
+            const regResp = await fetch(regUrl);
+            const registry = await regResp.json();
+            if (Array.isArray(registry)) {
+              isRegisteredClient = registry.some(c => c.uid === u.uid);
+            }
+          } catch(e) { /* registry doesn't exist yet */ }
+
+          if (isRegisteredClient) {
+            // User is a registered client
+            setLoginType('client');
+            setAppState('client-dashboard');
+          } else {
+            // Check 2: Is this user an admin? (has admin email)
+            const ADMIN_EMAILS = ["lucaselias.cavalcante@gmail.com"];
+            if (ADMIN_EMAILS.includes(u.email)) {
+              setLoginType('admin');
+              setIsEditing(true);
+            } else {
+              // User exists in Auth but is not a registered client or admin
+              setLoginType('client');
+              setAppState('client-dashboard');
+            }
+          }
+        } catch(e) {
+          // If all checks fail, treat as client (safe default)
           setLoginType('client');
           setAppState('client-dashboard');
-        } catch(e) {
-          setLoginType('admin');
-          setIsEditing(true);
         }
         setStatusMsg("Online");
       } else if (!u) {
@@ -1317,6 +1343,7 @@ export default function App() {
           db={db} 
           storage={storage} 
           isDemoMode={isDemoMode}
+          onSuccess={() => setShowAdminCRM(true)}
           onClose={() => { setShowAdminClientManager(false); }} 
         />
       )}

@@ -21,7 +21,7 @@ const manualConfig = {
 // =============================================
 // ADMIN: CRIAR ACESSO DE CLIENTE
 // =============================================
-export function AdminClientManager({ onClose, db, storage, isDemoMode }) {
+export function AdminClientManager({ onClose, db, storage, isDemoMode, onSuccess }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [title, setTitle] = useState('');
@@ -86,13 +86,17 @@ export function AdminClientManager({ onClose, db, storage, isDemoMode }) {
           const regUrl = await getDownloadURL(regRef);
           const regResp = await fetch(regUrl);
           registry = await regResp.json();
+          if (!Array.isArray(registry)) registry = [];
         } catch(e) {
           // Registry doesn't exist yet
         }
+        // Remove any existing entry for this email (in case of re-creation)
+        registry = registry.filter(c => c.email !== email);
         registry.push({
           uid: clientUid,
           email: email,
           password: password,
+          role: 'client',
           title: title || "Sua Entrega",
           deliveryDate: deliveryDate || null,
           createdAt: new Date().toISOString()
@@ -109,6 +113,7 @@ export function AdminClientManager({ onClose, db, storage, isDemoMode }) {
       
       setMessage('✅ Cliente criado com sucesso!');
       setTimeout(() => {
+        if (onSuccess) onSuccess();
         onClose();
       }, 2000);
     } catch(err) {
