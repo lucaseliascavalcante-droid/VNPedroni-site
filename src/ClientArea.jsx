@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { initializeApp, deleteApp } from "firebase/app";
 import { getAuth, createUserWithEmailAndPassword } from "firebase/auth";
 import {
@@ -6,6 +6,7 @@ import {
   getDoc, serverTimestamp, getDocs
 } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { motion, useInView } from 'framer-motion';
 import {
   X, Loader, Folder, ArrowLeft, Image as ImageIcon, LogOut,
   Calendar, Users, Trash2, ChevronDown, ChevronUp, Plus, Search,
@@ -153,6 +154,135 @@ export function AdminClientManager({ onClose, db, isDemoMode, onSuccess }) {
 // =============================================
 // DASHBOARD DO CLIENTE
 // =============================================
+
+// Componente de foto com tilt 3D interativo
+function TiltPhoto({ src, index, total }) {
+  const ref = useRef(null);
+  const [tilt, setTilt] = useState({ x: 0, y: 0 });
+
+  const handleMouseMove = (e) => {
+    const rect = ref.current.getBoundingClientRect();
+    const x = ((e.clientX - rect.left) / rect.width - 0.5) * 12;
+    const y = ((e.clientY - rect.top) / rect.height - 0.5) * -12;
+    setTilt({ x, y });
+  };
+
+  const handleMouseLeave = () => setTilt({ x: 0, y: 0 });
+
+  const isFirst = index === 0;
+
+  return (
+    <motion.div
+      ref={ref}
+      initial={{ opacity: 0, y: 60, scale: 0.95 }}
+      whileInView={{ opacity: 1, y: 0, scale: 1 }}
+      viewport={{ once: true, margin: '-50px' }}
+      transition={{
+        duration: 0.9,
+        delay: index * 0.12,
+        ease: [0.2, 0, 0.2, 1]
+      }}
+      onMouseMove={handleMouseMove}
+      onMouseLeave={handleMouseLeave}
+      style={{
+        transform: `perspective(800px) rotateX(${tilt.y}deg) rotateY(${tilt.x}deg)`,
+        transition: 'transform 0.15s ease-out'
+      }}
+      className={`relative overflow-hidden cursor-crosshair group ${
+        isFirst ? 'md:col-span-2 md:row-span-2 aspect-[4/3] lg:aspect-auto' : ''
+      } bg-[#e5e5e5] rounded-sm`}
+    >
+      <motion.img
+        src={src}
+        alt={`Preview ${index}`}
+        loading="lazy"
+        className="w-full h-full object-cover"
+        whileHover={{ scale: 1.06 }}
+        transition={{ duration: 1.8, ease: [0.2, 0, 0.2, 1] }}
+      />
+      <motion.div
+        className="absolute inset-0 bg-[#593428]/5 pointer-events-none"
+        initial={{ opacity: 0 }}
+        whileHover={{ opacity: 1 }}
+        transition={{ duration: 0.8 }}
+      />
+      <motion.div
+        className="absolute inset-0 pointer-events-none"
+        initial={{ background: 'transparent' }}
+        whileHover={{
+          background: 'linear-gradient(180deg, transparent 50%, rgba(89,52,40,0.15) 100%)'
+        }}
+        transition={{ duration: 0.6 }}
+      />
+    </motion.div>
+  );
+}
+
+// Componente de link com animação
+function LinkButton({ lk, index }) {
+  return (
+    <motion.a
+      href={lk.url}
+      target="_blank"
+      rel="noreferrer"
+      initial={{ opacity: 0, y: 30 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true }}
+      transition={{ duration: 0.7, delay: index * 0.15, ease: [0.2, 0, 0.2, 1] }}
+      whileHover={{ scale: 1.03, y: -2 }}
+      whileTap={{ scale: 0.97 }}
+      className="flex items-center gap-4 border border-[#593428]/15 text-[#593428] px-12 py-6 hover:bg-[#593428] hover:text-[#EADDCE] transition-all rounded-sm shadow-lg group"
+    >
+      <motion.div whileHover={{ rotate: 8 }}>
+        <Folder size={20} />
+      </motion.div>
+      <span className="font-bold text-[11px] tracking-[0.2em] uppercase">{lk.title}</span>
+    </motion.a>
+  );
+}
+
+// Componente de artifact com tilt
+function ArtifactCard({ art }) {
+  const ref = useRef(null);
+  const [tilt, setTilt] = useState({ x: 0, y: 0 });
+
+  const handleMouseMove = (e) => {
+    const rect = ref.current.getBoundingClientRect();
+    const x = ((e.clientX - rect.left) / rect.width - 0.5) * 8;
+    const y = ((e.clientY - rect.top) / rect.height - 0.5) * -8;
+    setTilt({ x, y });
+  };
+
+  return (
+    <motion.div
+      ref={ref}
+      initial={{ opacity: 0, y: 40 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true }}
+      transition={{ duration: 0.8, ease: [0.2, 0, 0.2, 1] }}
+      onMouseMove={handleMouseMove}
+      onMouseLeave={() => setTilt({ x: 0, y: 0 })}
+      style={{
+        transform: `perspective(600px) rotateX(${tilt.y}deg) rotateY(${tilt.x}deg)`,
+        transition: 'transform 0.12s ease-out'
+      }}
+      className="bg-white rounded-sm shadow-sm hover:shadow-2xl transition-shadow duration-700 p-10 text-left border border-[#593428]/5"
+    >
+      <div className="flex items-center gap-4 mb-4">
+        <Folder size={22} className="text-[#593428]/40" />
+        <h4 className="font-serif text-2xl">{art.title || art.id}</h4>
+      </div>
+      {art.description && <p className="text-sm text-gray-400 font-light leading-relaxed mb-6">{art.description}</p>}
+      {art.url && (
+        <a href={art.url} target="_blank" rel="noreferrer"
+          className="inline-flex items-center gap-2 bg-[#593428] text-[#EADDCE] px-6 py-3 text-[10px] font-bold uppercase tracking-widest hover:opacity-90 rounded-sm transition-opacity">
+          <ExternalLink size={12} /> Acessar Material
+        </a>
+      )}
+    </motion.div>
+  );
+}
+
 export function ClientDashboard({ db, user, onLogOut, onBackContent }) {
   const [clientData, setClientData] = useState(null);
   const [artifacts, setArtifacts] = useState([]);
@@ -204,31 +334,28 @@ export function ClientDashboard({ db, user, onLogOut, onBackContent }) {
   if (clientData === 'NOT_FOUND' || !clientData) {
     return (
       <div className="h-screen bg-[#FAF9F6] flex flex-col items-center justify-center text-[#593428] fixed inset-0 z-50">
-        <h2 className="text-2xl font-serif">Nenhuma entrega encontrada.</h2>
-        <p className="opacity-50 mt-4 mb-8">Essa conta não possui materiais vinculados.</p>
-        <div className="flex gap-4">
-          <button onClick={onBackContent} className="border border-[#593428] px-6 py-3 uppercase text-[10px] tracking-widest font-bold flex items-center gap-2"><ArrowLeft size={14} /> Site Oficial</button>
-          <button onClick={onLogOut} className="bg-[#593428] text-[#EADDCE] px-6 py-3 uppercase text-[10px] tracking-widest font-bold">Sair</button>
-        </div>
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 1 }}>
+          <h2 className="text-2xl font-serif mb-4">Nenhuma entrega encontrada.</h2>
+          <p className="opacity-50 mb-8">Essa conta não possui materiais vinculados.</p>
+          <div className="flex gap-4 justify-center">
+            <button onClick={onBackContent} className="border border-[#593428] px-6 py-3 uppercase text-[10px] tracking-widest font-bold flex items-center gap-2"><ArrowLeft size={14} /> Site Oficial</button>
+            <button onClick={onLogOut} className="bg-[#593428] text-[#EADDCE] px-6 py-3 uppercase text-[10px] tracking-widest font-bold">Sair</button>
+          </div>
+        </motion.div>
       </div>
     );
   }
 
   return (
     <div className="fixed inset-0 min-h-screen bg-[#FAF9F6] overflow-y-auto text-[#593428] z-[100] pb-24">
-      <style>{`
-        @keyframes cFSU { from { opacity:0; transform:translateY(40px) scale(0.97); } to { opacity:1; transform:translateY(0) scale(1); } }
-        @keyframes cFI { from { opacity:0; } to { opacity:1; } }
-        @keyframes cSD { from { opacity:0; transform:translateY(-20px); } to { opacity:1; transform:translateY(0); } }
-        .c-hdr { animation: cSD 0.8s cubic-bezier(0.2,0,0.2,1) forwards; }
-        .c-ttl { animation: cFSU 1s cubic-bezier(0.2,0,0.2,1) 0.2s forwards; opacity:0; }
-        .c-lnk { animation: cFSU 0.8s cubic-bezier(0.2,0,0.2,1) 0.5s forwards; opacity:0; }
-        .c-dlv { animation: cFI 0.8s cubic-bezier(0.2,0,0.2,1) 0.4s forwards; opacity:0; }
-        .c-pho { animation: cFSU 0.7s cubic-bezier(0.2,0,0.2,1) forwards; opacity:0; }
-      `}</style>
 
       {/* Header */}
-      <div className="absolute top-0 left-0 w-full py-6 px-8 flex justify-between items-center z-50 c-hdr">
+      <motion.div
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.8, ease: [0.2, 0, 0.2, 1] }}
+        className="absolute top-0 left-0 w-full py-6 px-8 flex justify-between items-center z-50"
+      >
         <button onClick={onBackContent} className="flex items-center gap-2 text-[10px] uppercase font-bold tracking-widest hover:text-[#593428]/70 transition text-[#593428] border border-[#593428]/20 px-4 py-2 rounded-full hover:bg-[#593428]/5">
           <ArrowLeft size={16} /> PÁGINA INICIAL
         </button>
@@ -238,49 +365,68 @@ export function ClientDashboard({ db, user, onLogOut, onBackContent }) {
             <LogOut size={14} /> <span className="hidden md:inline">SAIR</span>
           </button>
         </div>
-      </div>
+      </motion.div>
 
       <div className="max-w-6xl mx-auto text-center mt-32 px-6">
-        <span className="text-[10px] uppercase font-bold tracking-[0.4em] opacity-50 block mb-6 c-hdr">Entrega Exclusiva</span>
-        <h1 className="text-5xl md:text-8xl font-serif mb-8 px-4 leading-none c-ttl">
+
+        {/* Título */}
+        <motion.span
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 1, delay: 0.2 }}
+          className="text-[10px] uppercase font-bold tracking-[0.4em] opacity-50 block mb-6"
+        >
+          Entrega Exclusiva
+        </motion.span>
+
+        <motion.h1
+          initial={{ opacity: 0, y: 40, scale: 0.97 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          transition={{ duration: 1.2, delay: 0.3, ease: [0.2, 0, 0.2, 1] }}
+          className="text-5xl md:text-8xl font-serif mb-8 px-4 leading-none"
+        >
           {clientData.name || clientData.email}
-        </h1>
+        </motion.h1>
 
         {/* Data prevista */}
         {clientData.deliveryDate && (
-          <div className="c-dlv inline-flex items-center gap-3 bg-[#593428]/5 border border-[#593428]/10 px-8 py-3 rounded-full mb-16">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, delay: 0.5 }}
+            className="inline-flex items-center gap-3 bg-[#593428]/5 border border-[#593428]/10 px-8 py-3 rounded-full mb-20"
+          >
             <Calendar size={16} className="opacity-60" />
             <span className="text-[11px] uppercase font-bold tracking-[0.15em] opacity-70">
               Previsão de entrega: {formatDate(clientData.deliveryDate)}
             </span>
-          </div>
+          </motion.div>
         )}
 
         {/* Links de entrega */}
         {clientData.links?.length > 0 && (
-          <div className="flex flex-wrap justify-center gap-6 mb-20 px-4 c-lnk">
+          <div className="flex flex-wrap justify-center gap-6 mb-24 px-4">
             {clientData.links.map((lk, i) => (
-              <a key={i} href={lk.url} target="_blank" rel="noreferrer" className="flex items-center gap-3 border border-[#593428]/20 text-[#593428] px-10 py-5 hover:bg-[#593428] hover:text-[#EADDCE] transition-all rounded-sm shadow-xl group">
-                <Folder size={20} className="group-hover:scale-110 transition-transform" />
-                <span className="font-bold text-[11px] tracking-widest uppercase">{lk.title}</span>
-              </a>
+              <LinkButton key={i} lk={lk} index={i} />
             ))}
           </div>
         )}
 
-        {/* Fotos de prévia */}
+        {/* Fotos de prévia — Galeria Imersiva */}
         {clientData.previewPhotos?.length > 0 && (
-          <div className="mb-24">
-            <h3 className="text-3xl font-serif italic mb-12 text-[#593428]/80 c-ttl" style={{ animationDelay: '0.6s' }}>Suas Prévias</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-1 auto-rows-[400px]">
+          <div className="mb-32">
+            <motion.h3
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 1, ease: [0.2, 0, 0.2, 1] }}
+              className="text-4xl md:text-5xl font-serif italic mb-16 text-[#593428]/70"
+            >
+              Suas Prévias
+            </motion.h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-1 auto-rows-[400px] px-2">
               {clientData.previewPhotos.map((p, i) => (
-                <div key={i}
-                  className={`relative overflow-hidden group ${i === 0 ? 'md:col-span-2 md:row-span-2 aspect-[4/3] lg:aspect-auto' : ''} bg-[#e5e5e5] c-pho`}
-                  style={{ animationDelay: `${0.7 + (i * 0.12)}s` }}
-                >
-                  <img src={p} className="w-full h-full object-cover transition-transform duration-[2s] group-hover:scale-105" alt={`Preview ${i}`} loading="lazy" />
-                  <div className="absolute inset-0 bg-[#593428]/10 opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
-                </div>
+                <TiltPhoto key={i} src={p} index={i} total={clientData.previewPhotos.length} />
               ))}
             </div>
           </div>
@@ -288,22 +434,19 @@ export function ClientDashboard({ db, user, onLogOut, onBackContent }) {
 
         {/* Artifacts vinculados */}
         {artifacts.length > 0 && (
-          <div className="mb-24 c-lnk">
-            <h3 className="text-3xl font-serif italic mb-12 text-[#593428]/80">Seus Materiais</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-4xl mx-auto">
+          <div className="mb-32">
+            <motion.h3
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 1 }}
+              className="text-4xl md:text-5xl font-serif italic mb-16 text-[#593428]/70"
+            >
+              Seus Materiais
+            </motion.h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 max-w-4xl mx-auto">
               {artifacts.map((art) => (
-                <div key={art.id} className="bg-white rounded-lg shadow-sm hover:shadow-xl transition-all duration-500 p-6 text-left border border-[#593428]/5">
-                  <div className="flex items-center gap-3 mb-3">
-                    <Folder size={20} className="text-[#593428]/50" />
-                    <h4 className="font-serif text-lg">{art.title || art.id}</h4>
-                  </div>
-                  {art.description && <p className="text-sm text-gray-500 mb-4">{art.description}</p>}
-                  {art.url && (
-                    <a href={art.url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 bg-[#593428] text-[#EADDCE] px-4 py-2 text-[10px] font-bold uppercase tracking-widest hover:opacity-90 rounded">
-                      <ExternalLink size={12} /> Acessar
-                    </a>
-                  )}
-                </div>
+                <ArtifactCard key={art.id} art={art} />
               ))}
             </div>
           </div>
@@ -311,14 +454,27 @@ export function ClientDashboard({ db, user, onLogOut, onBackContent }) {
 
         {/* Vazio */}
         {!clientData.links?.length && !clientData.previewPhotos?.length && !artifacts.length && (
-          <div className="mt-16 opacity-40">
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 0.4 }}
+            transition={{ duration: 1, delay: 0.8 }}
+            className="mt-16"
+          >
             <Package size={48} className="mx-auto mb-4" />
             <p className="text-sm">Seus materiais ainda estão sendo preparados.</p>
             <p className="text-[10px] uppercase tracking-widest mt-2">Você será notificado quando estiver pronto.</p>
-          </div>
+          </motion.div>
         )}
 
-        <p className="text-[10px] uppercase font-bold tracking-[0.5em] opacity-30 mt-32 mb-10">VN PEDRONI FOTOGRAFIA</p>
+        <motion.p
+          initial={{ opacity: 0 }}
+          whileInView={{ opacity: 1 }}
+          viewport={{ once: true }}
+          transition={{ duration: 1, delay: 0.5 }}
+          className="text-[10px] uppercase font-bold tracking-[0.5em] opacity-30 mt-40 mb-10"
+        >
+          VN PEDRONI FOTOGRAFIA
+        </motion.p>
       </div>
     </div>
   );

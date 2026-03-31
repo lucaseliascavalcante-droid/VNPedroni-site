@@ -15,6 +15,7 @@ import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, si
 import { getFirestore, doc, setDoc, onSnapshot, updateDoc, getDoc } from "firebase/firestore";
 import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { AdminClientManager, ClientDashboard, AdminClientCRM } from './ClientArea';
+import ReactPlayer from 'react-player';
 
 // --- FIREBASE CONFIGURATION ---
 const manualConfig = {
@@ -839,17 +840,59 @@ export default function App() {
           </div>
           <div className="order-1 md:order-2 relative aspect-video group shadow-2xl rounded-sm bg-black overflow-hidden">
             {content.videoSectionUrl ? (
-              <video key={content.videoSectionUrl} src={content.videoSectionUrl} controls className="w-full h-full object-cover" playsInline />
+              <ReactPlayer
+                url={content.videoSectionUrl}
+                playing
+                muted
+                loop
+                controls={false}
+                width="100%"
+                height="100%"
+                style={{ position: 'absolute', top: 0, left: 0 }}
+                config={{
+                  youtube: {
+                    playerVars: {
+                      autoplay: 1,
+                      controls: 0,
+                      modestbranding: 1,
+                      showinfo: 0,
+                      rel: 0,
+                      iv_load_policy: 3,
+                      disablekb: 1,
+                      playsinline: 1
+                    }
+                  },
+                  vimeo: {
+                    playerOptions: {
+                      autoplay: true,
+                      muted: true,
+                      loop: true,
+                      controls: false,
+                      title: false,
+                      byline: false,
+                      portrait: false
+                    }
+                  }
+                }}
+              />
             ) : (
               <div className="w-full h-full flex flex-col items-center justify-center text-gray-500 gap-4">
                 <Film size={40} className="opacity-50" />
-                <span className="text-xs uppercase tracking-widest">Nenhum filme selecionado</span>
+                <span className="text-xs uppercase tracking-widest">
+                  {isEditing ? 'Cole uma URL do YouTube ou Vimeo' : 'Nenhum filme selecionado'}
+                </span>
               </div>
             )}
             {isEditing && (
-              <button onClick={() => triggerFileUpload(url => handleContentChange('videoSectionUrl', url))} className="absolute bottom-4 right-4 bg-white text-black px-4 py-2 text-[10px] uppercase font-bold shadow-lg hover:bg-[#EADDCE] transition-colors z-20 flex items-center gap-2">
-                <Upload size={14} /> {content.videoSectionUrl ? 'Trocar Filme' : 'Adicionar Filme'}
-              </button>
+              <div className="absolute bottom-4 left-4 right-4 z-20">
+                <input
+                  type="url"
+                  placeholder="Cole a URL do YouTube ou Vimeo"
+                  value={content.videoSectionUrl || ''}
+                  onChange={e => handleContentChange('videoSectionUrl', e.target.value)}
+                  className="w-full bg-white/90 backdrop-blur-sm text-black px-4 py-2 text-[10px] uppercase font-bold shadow-lg rounded outline-none border border-transparent focus:border-[#593428]/30"
+                />
+              </div>
             )}
           </div>
         </div>
