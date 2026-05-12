@@ -1,0 +1,38 @@
+{
+  "name": "VN Pedroni Fotografia",
+  "short_name": "VN Pedroni",
+  "description": "Fotografia e cinematografia documental de casamentos. Eternizando momentos com naturalidade e alma.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#593428",
+  "theme_color": "#593428",
+  "orientation": "portrait-primary",
+  "lang": "pt-BR",
+  "categories": ["photography", "lifestyle"],
+  "icons": [
+    {
+      "src": "/icons/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-maskable-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/icons/icon-maskable-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}
