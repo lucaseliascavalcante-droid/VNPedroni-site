@@ -1,7 +1,7 @@
 // Service Worker - VN Pedroni Fotografia
 // Versão mínima para garantir a instalabilidade do PWA
 
-const CACHE_NAME = 'vnpedroni-v1';
+const CACHE_NAME = 'vnpedroni-v2';
 
 // Evento de instalação
 self.addEventListener('install', (event) => {
