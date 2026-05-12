@@ -763,8 +763,8 @@ export default function App() {
         <div className="fixed inset-0 bg-[#593428] z-[200] flex flex-col items-center justify-center animate-fade-in text-[#EADDCE]">
           <button onClick={() => setMenuOpen(false)} className="absolute top-10 right-10 hover:text-white transition-colors"><X size={40} /></button>
           <div className="flex flex-col items-center gap-8">
-            {['Início', 'Portfólio', 'Dicas', 'Equipa', 'Contato'].map((label, idx) => (
-              <button key={idx} onClick={() => scrollToSection(label === 'Início' ? 'home' : (label === 'Equipa' ? 'team' : (label === 'Contato' ? 'contact' : (label === 'Dicas' ? 'tips' : 'portfolio'))))} className="text-4xl md:text-6xl font-serif italic hover:text-white transition-all transform hover:scale-105">
+            {['Início', 'Portfólio', 'Equipe', 'Contato'].map((label, idx) => (
+              <button key={idx} onClick={() => scrollToSection(label === 'Início' ? 'home' : (label === 'Equipe' ? 'team' : (label === 'Contato' ? 'contact' : 'portfolio')))} className="text-4xl md:text-6xl font-serif italic hover:text-white transition-all transform hover:scale-105">
                 {label}
               </button>
             ))}
@@ -927,7 +927,7 @@ export default function App() {
         </div>
       </section>
 
-      {/* EQUIPA */}
+      {/* EQUIPE */}
       <section id="team" className="py-32 bg-[#FAF9F6] reveal">
         <div className="max-w-5xl mx-auto px-6 text-center mb-24">
           <EditableText id="teamTitle" tag="h2" className="text-5xl md:text-7xl font-serif" value={content.teamTitle} isEditing={isEditing} onChange={handleContentChange} />
